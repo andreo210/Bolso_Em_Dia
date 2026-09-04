@@ -1,0 +1,6 @@
+@BolsoEmDia.Api_HostAddress = http://localhost:5023
+
+GET {{BolsoEmDia.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
