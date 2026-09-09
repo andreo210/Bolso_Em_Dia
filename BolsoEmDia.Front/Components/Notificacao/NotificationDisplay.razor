@@ -10,7 +10,7 @@
 <div class="notification-container">
     @if (_notificacaoAtual is not null)
     {
-        <div class="toast-notification @ClasseDoTipo()" @onclick="Fechar">
+        <div class="toast-notification @* @ClasseDoTipo() *@" @onclick="Fechar">
             <div class="toast-header">
                 <strong class="me-auto">@_notificacaoAtual.Title</strong>
                 <button type="button" class="btn-close" @onclick="Fechar" @onclick:stopPropagation="true"></button>

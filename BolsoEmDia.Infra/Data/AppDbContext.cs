@@ -17,6 +17,19 @@ namespace BolsoEmDia.Infra.Data
             _currentUserId = currentUser.UserId;
         }
 
+        public DbSet<Conta> Contas => Set<Conta>();
+        public DbSet<Transacao> Transacoes => Set<Transacao>();
+        public DbSet<Transferencia> Transferencias => Set<Transferencia>();
+        public DbSet<Categoria> Categorias => Set<Categoria>();
+        public DbSet<Orcamento> Orcamentos => Set<Orcamento>();
+        public DbSet<MetaEconomia> MetasEconomia => Set<MetaEconomia>();
+        public DbSet<AporteMeta> AportesMeta => Set<AporteMeta>();
+        public DbSet<Cartao> Cartoes => Set<Cartao>();
+        public DbSet<Fatura> Faturas => Set<Fatura>();
+        public DbSet<Compra> Compras => Set<Compra>();
+        public DbSet<Parcela> Parcelas => Set<Parcela>();
+        public DbSet<Recorrencia> Recorrencias => Set<Recorrencia>();
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder); // primeiro, para não perder o mapeamento do Identity
