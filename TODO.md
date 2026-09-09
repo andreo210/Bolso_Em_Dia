@@ -19,6 +19,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC02 — Editar / ativar / inativar conta
 - [x] UC05 — Verificar saldo da conta
 - [x] Controller de autenticação (registro/login) — `AutenticacaoController` (`POST /api/v1/auth/registrar`, `POST /api/v1/auth/login`)
+- [x] UC03 — Registrar receita — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/receitas`)
 
 ## Em andamento
 
@@ -29,12 +30,6 @@ _Nada em andamento no momento._
 Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
 
 ### Transações
-- [ ] UC03 — Registrar receita
-- [ ] UC04 — Registrar despesa (inclui UC05; extend UC10)
-- [ ] UC06 — Transferir entre contas (inclui UC05)
-
-### Transações
-- [ ] UC03 — Registrar receita
 - [ ] UC04 — Registrar despesa (inclui UC05; extend UC10)
 - [ ] UC06 — Transferir entre contas (inclui UC05)
 
