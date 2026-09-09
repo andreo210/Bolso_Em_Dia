@@ -1,8 +1,9 @@
-using System.Text;
 using BolsoEmDia.Api.Middleware;
 using BolsoEmDia.Application.Extensions;
+using BolsoEmDia.Application.Services.AutenticacaoServices;
 using BolsoEmDia.Domain.Entidades;
 using BolsoEmDia.Infra.Data;
+using BolsoEmDia.Infra.Data.Identity;
 using BolsoEmDia.Infra.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -25,9 +26,15 @@ builder.Services
         options.User.RequireUniqueEmail = true;
     })
     .AddEntityFrameworkStores<AppDbContext>()
+    .AddErrorDescriber<IdentityErrorDescriberPtBr>()
     .AddSignInManager();
 
-var jwtKey = config["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key não configurada.");
+// Assinatura RS256: a chave privada nunca sai do processo, só a pública é publicada em
+// GET /.well-known/jwks.json (JwksController). Instanciado aqui (fora do container) porque a
+// configuração do JwtBearer abaixo precisa da chave pública de forma síncrona.
+var rsaKeyService = new RsaKeyService(config);
+builder.Services.AddSingleton(rsaKeyService);
+
 builder.Services
     .AddAuthentication(options =>
     {
@@ -44,7 +51,7 @@ builder.Services
             ValidateIssuerSigningKey = true,
             ValidIssuer = config["Jwt:Issuer"],
             ValidAudience = config["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKey = rsaKeyService.Key
         };
     });
 builder.Services.AddAuthorization();

@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,razor,cshtml}]
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+
+# This codebase uses block-scoped namespaces, not file-scoped
+csharp_style_namespace_declarations = block:warning
+
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
