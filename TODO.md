@@ -20,6 +20,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC05 — Verificar saldo da conta
 - [x] Controller de autenticação (registro/login) — `AutenticacaoController` (`POST /api/v1/auth/registrar`, `POST /api/v1/auth/login`)
 - [x] UC03 — Registrar receita — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/receitas`)
+- [x] Projeto de testes automatizados (`BolsoEmDia.Tests`, xUnit — cobre autenticação, UC01, UC02, UC05 e UC03)
 
 ## Em andamento
 
@@ -57,7 +58,6 @@ Falta a camada Application/Api dos demais casos de uso (Domain e Infra já pront
 - [ ] UC21 — Gerar ocorrência de recorrência (job agendado; inclui UC03, UC04 ou UC14)
 
 ### Infra / qualidade (fora dos casos de uso)
-- [ ] Projeto de testes automatizados (nenhum existe hoje)
 - [ ] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
 - [ ] Corrigir `README.md` (hoje é o placeholder padrão do GitHub, em UTF-16)
 - [ ] Remover pastas vazias soltas (`Bolso_Em_Dia/` na raiz, `BolsoEmDia.Domain/NovaPasta/`)
