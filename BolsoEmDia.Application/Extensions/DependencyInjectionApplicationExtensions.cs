@@ -1,4 +1,5 @@
 using BolsoEmDia.Application.Configuration.Utils.NotificadorServices;
+using BolsoEmDia.Application.Services.AutenticacaoServices;
 using BolsoEmDia.Application.Services.ContaServices;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,6 +11,7 @@ namespace BolsoEmDia.Application.Extensions
         {
             services.AddScoped<INotificadorService, NotificadorService>();
             services.AddScoped<IContaService, ContaService>();
+            services.AddScoped<IAutenticacaoService, AutenticacaoService>();
             return services;
         }
     }

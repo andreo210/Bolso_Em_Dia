@@ -18,6 +18,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC01 — Cadastrar conta
 - [x] UC02 — Editar / ativar / inativar conta
 - [x] UC05 — Verificar saldo da conta
+- [x] Controller de autenticação (registro/login) — `AutenticacaoController` (`POST /api/v1/auth/registrar`, `POST /api/v1/auth/login`)
 
 ## Em andamento
 
@@ -61,7 +62,6 @@ Falta a camada Application/Api dos demais casos de uso (Domain e Infra já pront
 - [ ] UC21 — Gerar ocorrência de recorrência (job agendado; inclui UC03, UC04 ou UC14)
 
 ### Infra / qualidade (fora dos casos de uso)
-- [ ] Controller de autenticação (registro/login) — os controllers de negócio já são `[Authorize]`, mas não há endpoint para emitir o JWT ainda, então não dá para testar via Swagger sem token
 - [ ] Projeto de testes automatizados (nenhum existe hoje)
 - [ ] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
 - [ ] Corrigir `README.md` (hoje é o placeholder padrão do GitHub, em UTF-16)
