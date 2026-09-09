@@ -49,9 +49,10 @@ namespace BolsoEmDia.Tests.Fabricas
             string idUsuario = IdUsuarioPadrao,
             string nome = "Salário",
             TipoCategoria tipo = TipoCategoria.Receita,
+            int? idCategoriaPai = null,
             bool ativa = true)
         {
-            var categoria = Domain.Entidades.Categoria.Criar(idUsuario, nome, tipo);
+            var categoria = Domain.Entidades.Categoria.Criar(idUsuario, nome, tipo, idCategoriaPai);
 
             if (!ativa) categoria.Desativar();
 

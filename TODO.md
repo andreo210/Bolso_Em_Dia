@@ -21,6 +21,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] Controller de autenticação (registro/login) — `AutenticacaoController` (`POST /api/v1/auth/registrar`, `POST /api/v1/auth/login`)
 - [x] UC03 — Registrar receita — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/receitas`)
 - [x] Projeto de testes automatizados (`BolsoEmDia.Tests`, xUnit — cobre autenticação, UC01, UC02, UC05 e UC03)
+- [x] UC07 — Cadastrar categoria — `CategoriaService`/`CategoriaController` (`POST /api/v1/categorias`)
 
 ## Em andamento
 
@@ -35,7 +36,6 @@ Falta a camada Application/Api dos demais casos de uso (Domain e Infra já pront
 - [ ] UC06 — Transferir entre contas (inclui UC05)
 
 ### Categorias e orçamento
-- [ ] UC07 — Cadastrar categoria
 - [ ] UC08 — Definir orçamento mensal
 - [ ] UC09 — Acompanhar progresso do orçamento
 - [ ] UC10 — Alertar orçamento estourado
