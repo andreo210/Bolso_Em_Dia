@@ -9,6 +9,7 @@ A fonte das regras que justificam cada restrição destes documentos é a skill 
 | Documento | O que mostra | Quando abrir |
 |---|---|---|
 | [`casos-de-uso.md`](casos-de-uso.md) | Diagrama de casos de uso — atores (Usuário / job agendado), funcionalidades e relações `«include»`/`«extend»` | Para uma visão funcional do que o sistema faz, antes de entrar em dados ou classes |
+| [`especificacao-casos-de-uso.md`](especificacao-casos-de-uso.md) | Especificação textual de cada um dos 21 casos de uso — ator, pré-condições, fluxo principal, fluxos alternativos/exceção e pós-condições | Para conferir passo a passo o que um caso de uso específico exige e devolve, sem precisar reconstruir isso a partir do diagrama de sequência |
 | [`mer.md`](mer.md) | Modelo Entidade-Relacionamento **conceitual** — entidades, relacionamentos e cardinalidades, sem tipos de dado | Para entender o domínio de negócio de ponta a ponta, ou explicar o sistema para alguém não-técnico |
 | [`der.md`](der.md) | Diagrama Entidade-Relacionamento **lógico** — atributos com tipo, PK/FK/UK, notas de mapeamento para EF Core | Antes de criar/alterar uma entidade, migration ou configuração do `AppDbContext` |
 | [`uml-classes.md`](uml-classes.md) | Diagrama de classes UML no estilo já usado no projeto (`private set`, `static Criar`, agregados, `internal` para entidade interna) | Antes de escrever o código de uma entidade em `BolsoEmDia.Domain/Entidades` — é o esqueleto de onde partir |
@@ -19,12 +20,13 @@ A fonte das regras que justificam cada restrição destes documentos é a skill 
 ## Ordem sugerida de leitura
 
 1. `casos-de-uso.md` para a visão funcional — o que o sistema faz, para quem.
-2. `mer.md` para a visão de domínio — entidades e como se relacionam.
-3. `der.md` para o nível de implementação (tipos, chaves).
-4. `uml-classes.md` quando for de fato escrever a entidade em C#.
-5. `diagrama-estados.md` para o ciclo de vida de `Fatura` e `Recorrencia`.
-6. `diagramas-sequencia.md` quando for escrever o serviço/controller de um fluxo específico.
-7. `dicionario-dados.md` como referência de consulta enquanto implementa.
+2. `especificacao-casos-de-uso.md` para o detalhamento passo a passo de um caso de uso específico.
+3. `mer.md` para a visão de domínio — entidades e como se relacionam.
+4. `der.md` para o nível de implementação (tipos, chaves).
+5. `uml-classes.md` quando for de fato escrever a entidade em C#.
+6. `diagrama-estados.md` para o ciclo de vida de `Fatura` e `Recorrencia`.
+7. `diagramas-sequencia.md` quando for escrever o serviço/controller de um fluxo específico.
+8. `dicionario-dados.md` como referência de consulta enquanto implementa.
 
 ## Escopo coberto
 
