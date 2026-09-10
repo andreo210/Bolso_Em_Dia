@@ -63,22 +63,33 @@ namespace {{RootNamespace}}.Infra.Data
         /// Forma preferida de usar: não deixa transação aberta em caminho de erro.
         /// Dentro do bloco use InserirAsync/Atualizar (sem salvar) — salvar no meio
         /// derrota o propósito da transação.
+        ///
+        /// Precisa rodar dentro de <c>CreateExecutionStrategy().ExecuteAsync</c>: se o provider
+        /// estiver configurado com retry automático (ex.: Npgsql <c>EnableRetryOnFailure</c>), a
+        /// estratégia de retry proíbe abrir transação manualmente fora dela — toda a unidade
+        /// (begin + ação + commit) precisa poder ser reexecutada do zero numa falha transitória,
+        /// não só o SaveChanges.
         /// </summary>
         public async Task<T> ExecuteTransactionAsync<T>(Func<Task<T>> action, CancellationToken ct = default)
         {
-            await BeginTransactionAsync(ct);
+            var strategy = _context.Database.CreateExecutionStrategy();
 
-            try
+            return await strategy.ExecuteAsync(async () =>
             {
-                var resultado = await action();
-                await CommitAsync(ct);
-                return resultado;
-            }
-            catch
-            {
-                await RollbackAsync(ct);
-                throw;
-            }
+                await BeginTransactionAsync(ct);
+
+                try
+                {
+                    var resultado = await action();
+                    await CommitAsync(ct);
+                    return resultado;
+                }
+                catch
+                {
+                    await RollbackAsync(ct);
+                    throw;
+                }
+            });
         }
 
         private async Task DescartarTransacaoAsync()
