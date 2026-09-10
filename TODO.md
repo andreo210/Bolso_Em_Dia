@@ -24,6 +24,8 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC07 — Cadastrar categoria — `CategoriaService`/`CategoriaController` (`POST /api/v1/categorias`)
 - [x] UC08 — Definir orçamento mensal — `OrcamentoService`/`OrcamentoController` (`POST /api/v1/orcamentos`)
 - [x] UC09 — Acompanhar progresso do orçamento — `OrcamentoService`/`OrcamentoController` (`GET /api/v1/orcamentos/progresso`)
+- [x] UC04 — Registrar despesa — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/despesas`, inclui UC05, estende UC10 via `OrcamentoService.VerificarEstouroAsync`)
+- [x] UC10 — Alertar orçamento estourado — implementado junto de UC04 (`OrcamentoService.VerificarEstouroAsync`)
 
 ## Em andamento
 
@@ -34,11 +36,7 @@ _Nada em andamento no momento._
 Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
 
 ### Transações
-- [ ] UC04 — Registrar despesa (inclui UC05; extend UC10)
 - [ ] UC06 — Transferir entre contas (inclui UC05)
-
-### Categorias e orçamento
-- [ ] UC10 — Alertar orçamento estourado (depende de UC04, ainda não implementado)
 
 ### Metas de economia
 - [ ] UC11 — Criar meta de economia

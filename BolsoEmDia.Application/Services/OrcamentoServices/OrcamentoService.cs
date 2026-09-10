@@ -101,6 +101,24 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
             };
         }
 
+        // UC10 — Alertar orçamento estourado (estende UC04): chamada só depois da despesa já persistida;
+        // nunca passa pelo INotificadorService, pois estourar orçamento é aviso, não motivo de bloqueio.
+        public async Task<string?> VerificarEstouroAsync(int idCategoria, DateOnly mesReferencia, CancellationToken ct = default)
+        {
+            var mes = new DateOnly(mesReferencia.Year, mesReferencia.Month, 1);
+            var orcamento = await _orcamentoRepository.ObterPrimeiroAsync(
+                o => o.IdCategoria == idCategoria && o.MesReferencia == mes && o.IdUsuario == IdUsuarioAtual, ct: ct);
+            if (orcamento is null) return null;
+
+            var totalGasto = await CalcularTotalGastoNoMesAsync(idCategoria, mes, ct);
+            if (!orcamento.Estourado(totalGasto)) return null;
+
+            var categoria = await _categoriaRepository.ObterPrimeiroAsync(
+                c => c.IdCategoria == idCategoria && c.IdUsuario == IdUsuarioAtual, ct: ct);
+
+            return $"Orçamento de \"{categoria?.Nome}\" estourado em {mes:MM/yyyy}: gasto de {totalGasto:C} passou da meta de {orcamento.ValorMeta:C}";
+        }
+
         // UC09/UC10 — soma despesas da categoria e das subcategorias dela, com Data <= hoje, dentro do mês de referência.
         private async Task<decimal> CalcularTotalGastoNoMesAsync(int idCategoria, DateOnly mesReferencia, CancellationToken ct)
         {
