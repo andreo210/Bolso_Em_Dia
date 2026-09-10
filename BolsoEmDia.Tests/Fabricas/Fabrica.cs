@@ -86,5 +86,13 @@ namespace BolsoEmDia.Tests.Fabricas
             DateOnly? mesReferencia = null,
             decimal valorMeta = 500m)
             => Domain.Entidades.Orcamento.Definir(idUsuario, idCategoria, mesReferencia ?? MesAtual(), valorMeta);
+
+        public static MetaEconomia MetaEconomia(
+            string idUsuario = IdUsuarioPadrao,
+            string nome = "Viagem",
+            decimal valorAlvo = 1000m,
+            DateTime? dataAlvo = null,
+            int? idConta = null)
+            => Domain.Entidades.MetaEconomia.Criar(idUsuario, nome, valorAlvo, dataAlvo, idConta);
     }
 }
