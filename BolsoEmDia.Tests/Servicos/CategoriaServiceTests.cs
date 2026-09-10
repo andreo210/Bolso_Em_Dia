@@ -11,8 +11,7 @@ namespace BolsoEmDia.Tests.Servicos
 {
     public class CategoriaServiceTests
     {
-        private static (CategoriaService Service, CategoriaRepositoryFake Categorias, NotificadorService Notificador)
-            Montar(ArmazemFake? armazem = null, string? idUsuario = UsuarioFake.IdPadrao)
+        private static (CategoriaService Service, CategoriaRepositoryFake Categorias, NotificadorService Notificador) Montar(ArmazemFake? armazem = null, string? idUsuario = UsuarioFake.IdPadrao)
         {
             var arm = armazem ?? new ArmazemFake();
             var categorias = new CategoriaRepositoryFake(arm);

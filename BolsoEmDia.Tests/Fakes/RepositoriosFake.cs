@@ -20,6 +20,11 @@ namespace BolsoEmDia.Tests.Fakes
         public CategoriaRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
     }
 
+    public class OrcamentoRepositoryFake : RepositorioFake<Orcamento>, IOrcamentoRepository
+    {
+        public OrcamentoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
     public class TransacaoRepositoryFake : RepositorioFake<Transacao>, ITransacaoRepository
     {
         public TransacaoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }

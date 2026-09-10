@@ -23,6 +23,9 @@ namespace BolsoEmDia.Tests.Fabricas
         /// <summary>Data segura para "passado". Nunca use literal: ele envelhece e o teste quebra sozinho.</summary>
         public static DateTime DiasAtras(int dias) => DateTime.UtcNow.AddDays(-dias);
 
+        /// <summary>Primeiro dia do mês corrente — mesma normalização que <c>Orcamento.Definir</c> aplica.</summary>
+        public static DateOnly MesAtual() => new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+
         /// <summary>
         /// Escreve na chave primária mesmo com set privado. Em teste isso é necessário porque o id
         /// normalmente viria do banco, e sem ele todo filtro por id casaria com a entidade errada.
@@ -76,5 +79,12 @@ namespace BolsoEmDia.Tests.Fabricas
             decimal valor = 100m,
             string? descricao = "Despesa de teste")
             => Domain.Entidades.Transacao.RegistrarDespesa(idUsuario, idConta, idCategoria, data ?? DateTime.UtcNow, valor, descricao);
+
+        public static Orcamento Orcamento(
+            string idUsuario = IdUsuarioPadrao,
+            int idCategoria = 1,
+            DateOnly? mesReferencia = null,
+            decimal valorMeta = 500m)
+            => Domain.Entidades.Orcamento.Definir(idUsuario, idCategoria, mesReferencia ?? MesAtual(), valorMeta);
     }
 }

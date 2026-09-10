@@ -16,6 +16,8 @@ namespace BolsoEmDia.Infra.Data.Configuracao
                 .HasForeignKey(e => e.IdUsuario)
                 .OnDelete(DeleteBehavior.Cascade);
 
+
+            //uma categoria tem muitos orçamentos, mas um orçamento pertence a uma categoria
             builder.HasOne<Categoria>().WithMany()
                 .HasForeignKey(e => e.IdCategoria)
                 .OnDelete(DeleteBehavior.Cascade);

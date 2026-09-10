@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-BolsoEmDia — personal finance management app (Portuguese-language codebase). Solution with 7 .NET 9 projects, layered DDD-style, plus a Blazor Server front end:
+BolsoEmDia — personal finance management app (Portuguese-language codebase). Solution with 7 .NET 10 projects, layered DDD-style, plus a Blazor Server front end:
 
 - `BolsoEmDia.Domain` — entities, invariants, repository contracts. No EF/ASP.NET dependencies.
 - `BolsoEmDia.Infra` — EF Core persistence, generic repository, `AppDbContext`, migrations.
