@@ -8,6 +8,7 @@ A fonte das regras que justificam cada restrição destes documentos é a skill 
 
 | Documento | O que mostra | Quando abrir |
 |---|---|---|
+| [`analise-requisitos.md`](analise-requisitos.md) | Requisitos funcionais (um por caso de uso, com prioridade) e não-funcionais (segurança, confiabilidade, consistência etc.), cada um rastreado até o UC ou a decisão de arquitetura que o originou | Para saber *o que* o sistema precisa fazer e *sob que restrições*, antes mesmo do diagrama de casos de uso — é a visão de mais alto nível deste diretório |
 | [`casos-de-uso.md`](casos-de-uso.md) | Diagrama de casos de uso — atores (Usuário / job agendado), funcionalidades e relações `«include»`/`«extend»` | Para uma visão funcional do que o sistema faz, antes de entrar em dados ou classes |
 | [`especificacao-casos-de-uso.md`](especificacao-casos-de-uso.md) | Especificação textual de cada um dos 21 casos de uso — ator, pré-condições, fluxo principal, fluxos alternativos/exceção e pós-condições | Para conferir passo a passo o que um caso de uso específico exige e devolve, sem precisar reconstruir isso a partir do diagrama de sequência |
 | [`mer.md`](mer.md) | Modelo Entidade-Relacionamento **conceitual** — entidades, relacionamentos e cardinalidades, sem tipos de dado | Para entender o domínio de negócio de ponta a ponta, ou explicar o sistema para alguém não-técnico |
@@ -19,14 +20,15 @@ A fonte das regras que justificam cada restrição destes documentos é a skill 
 
 ## Ordem sugerida de leitura
 
-1. `casos-de-uso.md` para a visão funcional — o que o sistema faz, para quem.
-2. `especificacao-casos-de-uso.md` para o detalhamento passo a passo de um caso de uso específico.
-3. `mer.md` para a visão de domínio — entidades e como se relacionam.
-4. `der.md` para o nível de implementação (tipos, chaves).
-5. `uml-classes.md` quando for de fato escrever a entidade em C#.
-6. `diagrama-estados.md` para o ciclo de vida de `Fatura` e `Recorrencia`.
-7. `diagramas-sequencia.md` quando for escrever o serviço/controller de um fluxo específico.
-8. `dicionario-dados.md` como referência de consulta enquanto implementa.
+1. `analise-requisitos.md` para saber o que o sistema precisa fazer e sob que restrições, antes de entrar em qualquer diagrama.
+2. `casos-de-uso.md` para a visão funcional — o que o sistema faz, para quem.
+3. `especificacao-casos-de-uso.md` para o detalhamento passo a passo de um caso de uso específico.
+4. `mer.md` para a visão de domínio — entidades e como se relacionam.
+5. `der.md` para o nível de implementação (tipos, chaves).
+6. `uml-classes.md` quando for de fato escrever a entidade em C#.
+7. `diagrama-estados.md` para o ciclo de vida de `Fatura` e `Recorrencia`.
+8. `diagramas-sequencia.md` quando for escrever o serviço/controller de um fluxo específico.
+9. `dicionario-dados.md` como referência de consulta enquanto implementa.
 
 ## Escopo coberto
 
