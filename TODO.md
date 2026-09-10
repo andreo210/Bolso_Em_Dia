@@ -20,12 +20,13 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC05 — Verificar saldo da conta
 - [x] Controller de autenticação (registro/login) — `AutenticacaoController` (`POST /api/v1/auth/registrar`, `POST /api/v1/auth/login`)
 - [x] UC03 — Registrar receita — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/receitas`)
-- [x] Projeto de testes automatizados (`BolsoEmDia.Tests`, xUnit — cobre autenticação, UC01, UC02, UC05 e UC03)
+- [x] Projeto de testes automatizados (`BolsoEmDia.Tests`, xUnit — cobre autenticação, UC01, UC02, UC05, UC03, UC04, UC06)
 - [x] UC07 — Cadastrar categoria — `CategoriaService`/`CategoriaController` (`POST /api/v1/categorias`)
 - [x] UC08 — Definir orçamento mensal — `OrcamentoService`/`OrcamentoController` (`POST /api/v1/orcamentos`)
 - [x] UC09 — Acompanhar progresso do orçamento — `OrcamentoService`/`OrcamentoController` (`GET /api/v1/orcamentos/progresso`)
 - [x] UC04 — Registrar despesa — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/despesas`, inclui UC05, estende UC10 via `OrcamentoService.VerificarEstouroAsync`)
 - [x] UC10 — Alertar orçamento estourado — implementado junto de UC04 (`OrcamentoService.VerificarEstouroAsync`)
+- [x] UC06 — Transferir entre contas — `TransferenciaService`/`TransferenciaController` (`POST /api/v1/transferencias`, inclui UC05, grava as duas pernas via `IUnitOfWork.ExecuteTransactionAsync`)
 
 ## Em andamento
 
@@ -34,9 +35,6 @@ _Nada em andamento no momento._
 ## A fazer
 
 Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
-
-### Transações
-- [ ] UC06 — Transferir entre contas (inclui UC05)
 
 ### Metas de economia
 - [ ] UC11 — Criar meta de economia
