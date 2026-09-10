@@ -11,7 +11,7 @@ indent_style = space
 indent_size = 4
 
 # This codebase uses block-scoped namespaces, not file-scoped
-csharp_style_namespace_declarations = block:warning
+csharp_style_namespace_declarations = block_scoped:warning
 
 [*.{yml,yaml,json}]
 indent_style = space

@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BolsoEmDia.Api.Controllers
 {
+    /// <summary>
+    /// Lançamentos financeiros (receitas e despesas) do usuário autenticado.
+    /// </summary>
     [ApiController]
     [Authorize]
     [Route("api/v1/transacoes")]
@@ -19,6 +22,11 @@ namespace BolsoEmDia.Api.Controllers
             _service = service;
         }
 
+        /// <summary>
+        /// Registra uma receita, somando o valor ao saldo da conta informada.
+        /// </summary>
+        /// <response code="201">Receita registrada.</response>
+        /// <response code="400">Dados inválidos ou conta/categoria inexistente.</response>
         // UC03 — Registrar receita
         [HttpPost("receitas")]
         public async Task<ActionResult> RegistrarReceita([FromBody] CriarReceitaDto dto, CancellationToken ct)
