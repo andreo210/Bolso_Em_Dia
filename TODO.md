@@ -27,6 +27,8 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC04 — Registrar despesa — `TransacaoService`/`TransacaoController` (`POST /api/v1/transacoes/despesas`, inclui UC05, estende UC10 via `OrcamentoService.VerificarEstouroAsync`)
 - [x] UC10 — Alertar orçamento estourado — implementado junto de UC04 (`OrcamentoService.VerificarEstouroAsync`)
 - [x] UC06 — Transferir entre contas — `TransferenciaService`/`TransferenciaController` (`POST /api/v1/transferencias`, inclui UC05, grava as duas pernas via `IUnitOfWork.ExecuteTransactionAsync`)
+- [x] UC11 — Criar meta de economia — `MetaEconomiaService`/`MetaEconomiaController` (`POST /api/v1/metas`)
+- [x] UC12 — Registrar aporte em meta — `MetaEconomiaService`/`MetaEconomiaController` (`POST /api/v1/metas/{id}/aportes`)
 
 ## Em andamento
 
@@ -35,10 +37,6 @@ _Nada em andamento no momento._
 ## A fazer
 
 Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
-
-### Metas de economia
-- [ ] UC11 — Criar meta de economia
-- [ ] UC12 — Registrar aporte em meta
 
 ### Cartão de crédito
 - [ ] UC13 — Cadastrar cartão de crédito
