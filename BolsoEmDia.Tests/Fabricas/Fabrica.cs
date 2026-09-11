@@ -94,5 +94,14 @@ namespace BolsoEmDia.Tests.Fabricas
             DateTime? dataAlvo = null,
             int? idConta = null)
             => Domain.Entidades.MetaEconomia.Criar(idUsuario, nome, valorAlvo, dataAlvo, idConta);
+
+        public static Cartao Cartao(
+            string idUsuario = IdUsuarioPadrao,
+            string nome = "Cartão principal",
+            decimal limiteTotal = 2000m,
+            int diaFechamento = 5,
+            int diaVencimento = 12,
+            int idContaPagamento = 1)
+            => Domain.Entidades.Cartao.Criar(idUsuario, nome, limiteTotal, diaFechamento, diaVencimento, idContaPagamento);
     }
 }

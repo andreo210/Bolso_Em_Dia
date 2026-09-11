@@ -1,5 +1,6 @@
 using BolsoEmDia.Application.Configuration.Utils.NotificadorServices;
 using BolsoEmDia.Application.Services.AutenticacaoServices;
+using BolsoEmDia.Application.Services.CartaoServices;
 using BolsoEmDia.Application.Services.CategoriaServices;
 using BolsoEmDia.Application.Services.ContaServices;
 using BolsoEmDia.Application.Services.MetaEconomiaServices;
@@ -22,6 +23,7 @@ namespace BolsoEmDia.Application.Extensions
             services.AddScoped<ICategoriaService, CategoriaService>();
             services.AddScoped<IOrcamentoService, OrcamentoService>();
             services.AddScoped<IMetaEconomiaService, MetaEconomiaService>();
+            services.AddScoped<ICartaoService, CartaoService>();
             return services;
         }
     }
