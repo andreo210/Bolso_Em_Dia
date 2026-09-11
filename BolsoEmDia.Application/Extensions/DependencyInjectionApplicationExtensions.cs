@@ -29,6 +29,7 @@ namespace BolsoEmDia.Application.Extensions
             services.AddScoped<ICartaoService, CartaoService>();
             services.AddScoped<ICompraService, CompraService>();
             services.AddScoped<IFaturaService, FaturaService>();
+            services.AddScoped<IFechamentoFaturaJobService, FechamentoFaturaJobService>();
             services.AddScoped<IRecorrenciaService, RecorrenciaService>();
             services.AddScoped<IRecorrenciaJobService, RecorrenciaJobService>();
             return services;

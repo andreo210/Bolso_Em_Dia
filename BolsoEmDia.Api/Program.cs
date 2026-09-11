@@ -18,6 +18,7 @@ builder.Services.AddInjecaoDependenciaApplicationsConfig();
 builder.Services.AddPostgresDbContext(config["ConnectionStrings:BolsoEmDia"] ?? "");
 builder.Services.AddRepositories();
 builder.Services.AddHostedService<RecorrenciaJob>();
+builder.Services.AddHostedService<FechamentoFaturaJob>();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
