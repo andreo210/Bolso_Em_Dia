@@ -36,6 +36,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC17 — Pagar fatura — `FaturaService`/`FaturaController` (`POST /api/v1/faturas/{id}/pagamento`, inclui UC04; `Fatura.RegistrarPagamento` passou a aceitar Aberta→Paga para pagamento antecipado, ver diagrama-estados.md)
 - [x] UC18 — Criar recorrência — `RecorrenciaService`/`RecorrenciaController` (`POST /api/v1/recorrencias`)
 - [x] UC19 — Pausar / cancelar recorrência — implementado junto de UC18 (`PATCH /api/v1/recorrencias/{id}/pausar`, `PATCH /api/v1/recorrencias/{id}/reativar`; "cancelar" mapeia para `Pausar()`, ver zona cinzenta em especificacao-casos-de-uso.md)
+- [x] UC21 — Gerar ocorrência de recorrência — `RecorrenciaJob` (hosted service em `BolsoEmDia.Api/Jobs`) + `RecorrenciaJobService` (`BolsoEmDia.Application`); roda diariamente à meia-noite, gera `Transacao`/`Compra` a partir de cada `Recorrencia` ativa. Não reaproveita `ITransacaoService`/`ICompraService` (dependem de `ICurrentUser`/`HttpContext`, inexistente no job) — replica a mesma checagem de saldo/limite localmente, mesmo padrão de `FaturaService` para UC17→UC04. Bloqueio de saldo/limite só loga e segue o lote (A1); falha de infra é capturada no job para não derrubar o host.
 
 ## Em andamento
 
@@ -47,9 +48,6 @@ Falta a camada Application/Api dos demais casos de uso (Domain e Infra já pront
 
 ### Cartão de crédito
 - [ ] UC20 — Fechar fatura do ciclo (job agendado)
-
-### Recorrências
-- [ ] UC21 — Gerar ocorrência de recorrência (job agendado; inclui UC03, UC04 ou UC14)
 
 ### Infra / qualidade (fora dos casos de uso)
 - [ ] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)

@@ -1,3 +1,4 @@
+using BolsoEmDia.Api.Jobs;
 using BolsoEmDia.Api.Middleware;
 using BolsoEmDia.Application.Extensions;
 using BolsoEmDia.Application.Services.AutenticacaoServices;
@@ -16,6 +17,7 @@ var config = builder.Configuration;
 builder.Services.AddInjecaoDependenciaApplicationsConfig();
 builder.Services.AddPostgresDbContext(config["ConnectionStrings:BolsoEmDia"] ?? "");
 builder.Services.AddRepositories();
+builder.Services.AddHostedService<RecorrenciaJob>();
 
 builder.Services
     .AddIdentityCore<ApplicationUser>(options =>
