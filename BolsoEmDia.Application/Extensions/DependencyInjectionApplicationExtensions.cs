@@ -7,6 +7,7 @@ using BolsoEmDia.Application.Services.ContaServices;
 using BolsoEmDia.Application.Services.FaturaServices;
 using BolsoEmDia.Application.Services.MetaEconomiaServices;
 using BolsoEmDia.Application.Services.OrcamentoServices;
+using BolsoEmDia.Application.Services.RecorrenciaServices;
 using BolsoEmDia.Application.Services.TransacaoServices;
 using BolsoEmDia.Application.Services.TransferenciaServices;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,6 +29,7 @@ namespace BolsoEmDia.Application.Extensions
             services.AddScoped<ICartaoService, CartaoService>();
             services.AddScoped<ICompraService, CompraService>();
             services.AddScoped<IFaturaService, FaturaService>();
+            services.AddScoped<IRecorrenciaService, RecorrenciaService>();
             return services;
         }
     }
