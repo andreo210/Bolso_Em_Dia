@@ -1,37 +1,37 @@
-﻿# Modelagem — BolsoEmDia
+# BolsoEmDia
 
-Documentação de modelagem de dados e domínio do sistema de organização financeira pessoal. Os diagramas usam [Mermaid](https://mermaid.js.org/), que o GitHub/GitLab renderiza direto no `.md` — não precisa de ferramenta externa para visualizar, basta abrir o arquivo no navegador do git.
+Aplicativo de organização financeira pessoal — contas, transações, categorias e orçamento mensal, metas de economia, cartão de crédito (compra, fatura, fechamento, limite, parcelamento) e transações recorrentes/assinaturas.
 
-A fonte das regras que justificam cada restrição destes documentos é a skill `regras-negocio-financas` (`.claude/skills/regras-negocio-financas/`) — este diretório é a tradução dessas regras em modelo de dados e classes. Se um documento aqui e a skill divergirem em algum ponto, a skill é a fonte da verdade sobre a regra de negócio; abra uma correção nos dois lugares.
+Solução .NET 10, arquitetura em camadas (DDD), com front end em Blazor Server.
 
-## Documentos
+## Projetos
 
-| Documento | O que mostra | Quando abrir |
-|---|---|---|
-| [`analise-requisitos.md`](analise-requisitos.md) | Requisitos funcionais (um por caso de uso, com prioridade) e não-funcionais (segurança, confiabilidade, consistência etc.), cada um rastreado até o UC ou a decisão de arquitetura que o originou | Para saber *o que* o sistema precisa fazer e *sob que restrições*, antes mesmo do diagrama de casos de uso — é a visão de mais alto nível deste diretório |
-| [`casos-de-uso.md`](casos-de-uso.md) | Diagrama de casos de uso — atores (Usuário / job agendado), funcionalidades e relações `«include»`/`«extend»` | Para uma visão funcional do que o sistema faz, antes de entrar em dados ou classes |
-| [`especificacao-casos-de-uso.md`](especificacao-casos-de-uso.md) | Especificação textual de cada um dos 21 casos de uso — ator, pré-condições, fluxo principal, fluxos alternativos/exceção e pós-condições | Para conferir passo a passo o que um caso de uso específico exige e devolve, sem precisar reconstruir isso a partir do diagrama de sequência |
-| [`mer.md`](mer.md) | Modelo Entidade-Relacionamento **conceitual** — entidades, relacionamentos e cardinalidades, sem tipos de dado | Para entender o domínio de negócio de ponta a ponta, ou explicar o sistema para alguém não-técnico |
-| [`der.md`](der.md) | Diagrama Entidade-Relacionamento **lógico** — atributos com tipo, PK/FK/UK, notas de mapeamento para EF Core | Antes de criar/alterar uma entidade, migration ou configuração do `AppDbContext` |
-| [`uml-classes.md`](uml-classes.md) | Diagrama de classes UML no estilo já usado no projeto (`private set`, `static Criar`, agregados, `internal` para entidade interna) | Antes de escrever o código de uma entidade em `BolsoEmDia.Domain/Entidades` — é o esqueleto de onde partir |
-| [`diagrama-estados.md`](diagrama-estados.md) | Diagrama de estados de `Fatura` (Aberta/Fechada/Paga) e `Recorrencia` (Ativa/Pausada/Encerrada) — toda transição válida, e por omissão toda transição que não existe | Para tirar dúvida sobre "esse status pode virar aquele outro?" sem precisar caçar isso espalhado nos diagramas de sequência |
-| [`diagramas-sequencia.md`](diagramas-sequencia.md) | Diagramas de sequência dos 6 fluxos mais sensíveis (despesa com bloqueio de saldo vs. alerta de orçamento, transferência atômica, compra parcelada com checagem de limite, fechamento de fatura, pagamento de fatura, geração de recorrência) | Antes de implementar o serviço/controller de um desses fluxos — mostra a ordem exata das chamadas entre Controller → Service → Notificador/Entidade → Repositório |
-| [`dicionario-dados.md`](dicionario-dados.md) | Dicionário de dados — campo a campo, com domínio de valores e a regra que justifica cada restrição | Para tirar dúvida pontual sobre um campo específico (nulável? unique? qual o range válido?) |
+| Projeto | Responsabilidade |
+|---|---|
+| `BolsoEmDia.Domain` | Entidades, invariantes de negócio, contratos de repositório. Sem dependência de EF/ASP.NET. |
+| `BolsoEmDia.Infra` | Persistência com EF Core, repositório genérico, `AppDbContext`, migrations. |
+| `BolsoEmDia.Application` | Serviços de aplicação, DTOs, mappers, notificador de erros de negócio. |
+| `BolsoEmDia.Api` | Web API (ASP.NET), controllers, autenticação JWT, Swagger. |
+| `BolsoEmDia.Front` | Front end Blazor Server. |
+| `BolsoEmDia.Front.Services` | Consumo HTTP da Api a partir do front (`ApiHttpService`), tratamento de token. |
+| `BolsoEmDia.Front.Models` | Contratos de request/response + validadores FluentValidation compartilhados com o front. |
+| `BolsoEmDia.Tests` | Testes automatizados (xUnit). |
 
-## Ordem sugerida de leitura
+## Como rodar
 
-1. `analise-requisitos.md` para saber o que o sistema precisa fazer e sob que restrições, antes de entrar em qualquer diagrama.
-2. `casos-de-uso.md` para a visão funcional — o que o sistema faz, para quem.
-3. `especificacao-casos-de-uso.md` para o detalhamento passo a passo de um caso de uso específico.
-4. `mer.md` para a visão de domínio — entidades e como se relacionam.
-5. `der.md` para o nível de implementação (tipos, chaves).
-6. `uml-classes.md` quando for de fato escrever a entidade em C#.
-7. `diagrama-estados.md` para o ciclo de vida de `Fatura` e `Recorrencia`.
-8. `diagramas-sequencia.md` quando for escrever o serviço/controller de um fluxo específico.
-9. `dicionario-dados.md` como referência de consulta enquanto implementa.
+Pré-requisitos: .NET 10 SDK e um Postgres acessível (local via Docker, por exemplo).
 
-## Escopo coberto
+```bash
+dotnet build
+dotnet run --project BolsoEmDia.Api
+dotnet run --project BolsoEmDia.Front
+```
 
-Contas (corrente/poupança/carteira/investimento) e transações, transferência entre contas, categorias e orçamento mensal, metas de economia, cartão de crédito com fatura/fechamento/vencimento/limite/parcelamento, e recorrências (transação ou compra de cartão gerada automaticamente).
+A connection string padrão (`Host=localhost;Port=5432;Database=bolso_em_dia`) está em `BolsoEmDia.Api/appsettings.json`. Para outro ambiente, defina a variável `ConnectionStrings__BolsoEmDia`.
 
-**Fora do escopo modelado** (mencionado como extensão na skill de regras, não implementar sem confirmar antes): múltiplas moedas, compartilhamento de conta entre mais de um usuário, integração com extrato bancário (open finance/OFX), teto configurável de cheque especial, taxa de transferência, estorno parcial de compra parcelada já paga parcialmente.
+## Documentação
+
+- [`CLAUDE.md`](CLAUDE.md) — visão geral do projeto, convenções de código e fluxo de trabalho.
+- [`TODO.md`](TODO.md) — status dos casos de uso e pendências.
+- [`docs/modelagem/`](docs/modelagem/) — modelagem completa do domínio: requisitos, casos de uso, MER/DER, diagrama de classes UML, diagrama de estados, diagramas de sequência e dicionário de dados.
+- `.claude/skills/` — skills com as regras de arquitetura (`arquitetura-api`, `arquitetura-front`) e de negócio (`regras-negocio-financas`) usadas como fonte de verdade ao implementar novas funcionalidades.

@@ -48,6 +48,6 @@ _Nada em andamento no momento._
 _Nenhum caso de uso pendente — os 21 UCs estão implementados._
 
 ### Infra / qualidade (fora dos casos de uso)
-- [ ] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
-- [ ] Corrigir `README.md` (hoje é o placeholder padrão do GitHub, em UTF-16)
-- [ ] Remover pastas vazias soltas (`Bolso_Em_Dia/` na raiz, `BolsoEmDia.Domain/NovaPasta/`)
+- [x] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
+- [x] Corrigir `README.md` (era uma cópia acidental de `docs/modelagem/README.md`; agora descreve o projeto)
+- [x] Remover pastas vazias soltas (`Bolso_Em_Dia/` na raiz; `BolsoEmDia.Domain/NovaPasta/` já não existia)

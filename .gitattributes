@@ -1,0 +1,23 @@
+# Normaliza fim de linha para LF no repositório, independente do SO/editor
+# usado no checkout (evita o diff em massa CRLF<->LF ao editar pelo WSL).
+* text=auto eol=lf
+
+*.cs text eol=lf
+*.razor text eol=lf
+*.cshtml text eol=lf
+*.csproj text eol=lf
+*.sln text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.props text eol=lf
+*.editorconfig text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+*.http text eol=lf
+
+*.png binary
+
+# Assets de terceiros (bootstrap etc.) ficam como estão no upstream
+BolsoEmDia.Front/wwwroot/lib/** -text
