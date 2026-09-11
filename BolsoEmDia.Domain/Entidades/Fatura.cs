@@ -44,10 +44,12 @@ namespace BolsoEmDia.Domain.Entidades
             Status = StatusFatura.Fechada;
         }
 
+        // Aberta -> Paga é pagamento antecipado (usuário quita antes do fechamento); Fechada -> Paga
+        // é o fluxo normal. Paga é terminal — ver diagrama-estados.md.
         public void RegistrarPagamento(int idTransacaoPagamento)
         {
-            if (Status != StatusFatura.Fechada)
-                throw new DomainException("Somente fatura fechada pode ser paga");
+            if (Status == StatusFatura.Paga)
+                throw new DomainException("Fatura já está paga");
 
             IdTransacaoPagamento = idTransacaoPagamento;
             Status = StatusFatura.Paga;
