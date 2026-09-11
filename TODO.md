@@ -30,6 +30,9 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC11 — Criar meta de economia — `MetaEconomiaService`/`MetaEconomiaController` (`POST /api/v1/metas`)
 - [x] UC12 — Registrar aporte em meta — `MetaEconomiaService`/`MetaEconomiaController` (`POST /api/v1/metas/{id}/aportes`)
 - [x] UC13 — Cadastrar cartão de crédito — `CartaoService`/`CartaoController` (`POST /api/v1/cartoes`)
+- [x] UC14 — Registrar compra no cartão — `CompraService`/`CompraController` (`POST /api/v1/compras`, inclui UC15 e UC16)
+- [x] UC15 — Verificar limite disponível do cartão — implementado junto de UC14 (`IParcelaRepository.ObterTotalParcelasNaoPagasAsync` + `Cartao.LimiteDisponivel`)
+- [x] UC16 — Gerar parcelas da compra — implementado junto de UC14 (`Compra.Registrar` + `Cartao.ObterOuAbrirFaturaParaLancamento`)
 
 ## Em andamento
 
@@ -40,9 +43,6 @@ _Nada em andamento no momento._
 Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
 
 ### Cartão de crédito
-- [ ] UC14 — Registrar compra no cartão (inclui UC15, UC16)
-- [ ] UC15 — Verificar limite disponível do cartão
-- [ ] UC16 — Gerar parcelas da compra
 - [ ] UC17 — Pagar fatura (inclui UC04)
 - [ ] UC20 — Fechar fatura do ciclo (job agendado)
 

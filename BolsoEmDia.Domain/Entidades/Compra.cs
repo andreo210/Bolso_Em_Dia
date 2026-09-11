@@ -28,8 +28,15 @@ namespace BolsoEmDia.Domain.Entidades
         /// Recebe o próprio <see cref="Cartao"/> (não só o id) porque resolver em qual fatura
         /// cada parcela cai — e abrir uma fatura nova quando não existe uma para o ciclo — é
         /// uma regra que só o agregado Cartao sabe aplicar (ver Cartao.CalcularMesReferencia/
-        /// AbrirFatura). É um toque deliberado entre agregados, documentado aqui como pede
-        /// a convenção de "Quando um agregado toca o outro" (arquitetura-api/dominio.md).
+        /// ObterOuAbrirFaturaParaLancamento). É um toque deliberado entre agregados, documentado
+        /// aqui como pede a convenção de "Quando um agregado toca o outro" (arquitetura-api/dominio.md).
+        ///
+        /// Parcela.IdFatura é uma referência entre agregados por id (sem navegação EF, de
+        /// propósito — Parcela não pertence ao agregado Cartao). Por isso quem chama isto
+        /// precisa garantir que toda fatura que vai ser atingida já tem Id real gravado —
+        /// senão uma fatura aberta agora mesmo (Id ainda 0) grava 0 na coluna, não o Id de
+        /// verdade. Ver CompraService.RegistrarAsync: ele resolve/abre e salva as faturas dos N
+        /// ciclos ANTES de chamar este método.
         /// </summary>
         public static Compra Registrar(
             string idUsuario, Cartao cartao, int idCategoria, DateTime data, string descricao,
@@ -71,31 +78,11 @@ namespace BolsoEmDia.Domain.Entidades
                     ? valorTotal - valorParcela * (numeroParcelas - 1)
                     : valorParcela;
 
-                var fatura = ObterFaturaParaLancamento(cartao, mesReferenciaBase.AddMonths(numero - 1));
+                var fatura = cartao.ObterOuAbrirFaturaParaLancamento(mesReferenciaBase.AddMonths(numero - 1));
                 compra._parcelas.Add(Parcela.Criar(idUsuario, compra.IdCompra, fatura.IdFatura, numero, valor));
             }
 
             return compra;
-        }
-
-        // Fatura fechada é imutável: se o ciclo alvo já fechou, a parcela desliza para o
-        // próximo ciclo em aberto em vez de entrar numa fatura fechada.
-        private static Fatura ObterFaturaParaLancamento(Cartao cartao, DateOnly mesReferenciaDesejado)
-        {
-            var mesReferencia = mesReferenciaDesejado;
-
-            while (true)
-            {
-                var fatura = cartao.Faturas.FirstOrDefault(f => f.MesReferencia == mesReferencia);
-
-                if (fatura == null)
-                    return cartao.AbrirFatura(mesReferencia, cartao.CalcularDataFechamento(mesReferencia), cartao.CalcularDataVencimento(mesReferencia));
-
-                if (fatura.AceitaNovoLancamento())
-                    return fatura;
-
-                mesReferencia = mesReferencia.AddMonths(1);
-            }
         }
 
         // Remove as parcelas futuras e libera o limite total da compra. Estorno parcial (com

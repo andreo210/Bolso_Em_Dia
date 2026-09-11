@@ -10,8 +10,7 @@ namespace BolsoEmDia.Tests.Servicos
 {
     public class CartaoServiceTests
     {
-        private static (CartaoService Service, CartaoRepositoryFake Cartoes, NotificadorService Notificador)
-            Montar(ArmazemFake? armazem = null, string? idUsuario = UsuarioFake.IdPadrao)
+        private static (CartaoService Service, CartaoRepositoryFake Cartoes, NotificadorService Notificador) Montar(ArmazemFake? armazem = null, string? idUsuario = UsuarioFake.IdPadrao)
         {
             var arm = armazem ?? new ArmazemFake();
             var cartoes = new CartaoRepositoryFake(arm);

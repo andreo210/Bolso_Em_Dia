@@ -67,6 +67,32 @@ namespace BolsoEmDia.Domain.Entidades
             return fatura;
         }
 
+        // Fica no Cartao (não em Compra) porque só ele conhece seu próprio estado de faturas —
+        // Compra.Registrar chama isso uma vez por parcela. Fatura fechada é imutável: se o ciclo
+        // alvo já fechou, a parcela desliza para o próximo ciclo em aberto em vez de entrar nela.
+        //
+        // Idempotente: chamar de novo para o mesmo mês (já resolvido) devolve a mesma instância,
+        // sem abrir fatura duplicada — é o que permite ao CompraService resolver e persistir as
+        // faturas de todos os ciclos ANTES de montar as parcelas (ver comentário em Compra.Registrar
+        // sobre Parcela.IdFatura precisar de um Id já gerado).
+        public Fatura ObterOuAbrirFaturaParaLancamento(DateOnly mesReferenciaDesejado)
+        {
+            var mesReferencia = mesReferenciaDesejado;
+
+            while (true)
+            {
+                var fatura = _faturas.FirstOrDefault(f => f.MesReferencia == mesReferencia);
+
+                if (fatura == null)
+                    return AbrirFatura(mesReferencia, CalcularDataFechamento(mesReferencia), CalcularDataVencimento(mesReferencia));
+
+                if (fatura.AceitaNovoLancamento())
+                    return fatura;
+
+                mesReferencia = mesReferencia.AddMonths(1);
+            }
+        }
+
         // Compra até o dia de fechamento entra no ciclo corrente; depois, no ciclo seguinte.
         public DateOnly CalcularMesReferencia(DateTime data)
         {
