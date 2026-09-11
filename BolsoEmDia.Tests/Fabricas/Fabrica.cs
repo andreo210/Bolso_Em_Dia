@@ -103,5 +103,22 @@ namespace BolsoEmDia.Tests.Fabricas
             int diaVencimento = 12,
             int idContaPagamento = 1)
             => Domain.Entidades.Cartao.Criar(idUsuario, nome, limiteTotal, diaFechamento, diaVencimento, idContaPagamento);
+
+        /// <summary>
+        /// Abre (ou reaproveita) a fatura do ciclo corrente do cartão via
+        /// <c>Cartao.ObterOuAbrirFaturaParaLancamento</c> — <c>Fatura.Abrir</c> é <c>internal</c>,
+        /// só o próprio Cartao pode chamá-lo. Chame <c>ArmazemFake.Semear</c> na fatura devolvida
+        /// para que ela ganhe id, do mesmo jeito que qualquer outra entidade nos testes.
+        /// </summary>
+        public static Fatura Fatura(Cartao cartao, decimal valorTotal = 300m, bool fechada = false)
+        {
+            var mesReferencia = cartao.CalcularMesReferencia(DateTime.UtcNow);
+            var fatura = cartao.ObterOuAbrirFaturaParaLancamento(mesReferencia);
+            fatura.RecalcularValorTotal(valorTotal);
+
+            if (fechada) fatura.Fechar();
+
+            return fatura;
+        }
     }
 }

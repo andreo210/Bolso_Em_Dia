@@ -33,6 +33,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC14 — Registrar compra no cartão — `CompraService`/`CompraController` (`POST /api/v1/compras`, inclui UC15 e UC16)
 - [x] UC15 — Verificar limite disponível do cartão — implementado junto de UC14 (`IParcelaRepository.ObterTotalParcelasNaoPagasAsync` + `Cartao.LimiteDisponivel`)
 - [x] UC16 — Gerar parcelas da compra — implementado junto de UC14 (`Compra.Registrar` + `Cartao.ObterOuAbrirFaturaParaLancamento`)
+- [x] UC17 — Pagar fatura — `FaturaService`/`FaturaController` (`POST /api/v1/faturas/{id}/pagamento`, inclui UC04; `Fatura.RegistrarPagamento` passou a aceitar Aberta→Paga para pagamento antecipado, ver diagrama-estados.md)
 
 ## Em andamento
 
@@ -43,7 +44,6 @@ _Nada em andamento no momento._
 Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
 
 ### Cartão de crédito
-- [ ] UC17 — Pagar fatura (inclui UC04)
 - [ ] UC20 — Fechar fatura do ciclo (job agendado)
 
 ### Recorrências
