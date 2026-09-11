@@ -35,6 +35,54 @@ namespace BolsoEmDia.Tests.Fakes
         public TransferenciaRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
     }
 
+    public class CartaoRepositoryFake : RepositorioFake<Cartao>, ICartaoRepository
+    {
+        public CartaoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+
+        /// <summary>
+        /// Propaga faturas novas (abertas via Cartao.AbrirFatura) para a própria tabela —
+        /// no banco de verdade isso é a cascata Cartao.Faturas do EF; sem isso, ParcelaRepositoryFake
+        /// nunca enxergaria a fatura ao somar parcelas não pagas em CompraService (ver UC15).
+        /// </summary>
+        public override Task<int> SalvarAsync(CancellationToken ct = default)
+        {
+            var tabelaFaturas = Armazem.Tabela<Fatura>();
+
+            foreach (var cartao in Tabela)
+            foreach (var fatura in cartao.Faturas)
+                if (!tabelaFaturas.Contains(fatura))
+                    Armazem.Semear(fatura);
+
+            return base.SalvarAsync(ct);
+        }
+    }
+
+    public class CompraRepositoryFake : RepositorioFake<Compra>, ICompraRepository
+    {
+        public CompraRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
+    public class FaturaRepositoryFake : RepositorioFake<Fatura>, IFaturaRepository
+    {
+        public FaturaRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+    }
+
+    public class ParcelaRepositoryFake : RepositorioFake<Parcela>, IParcelaRepository
+    {
+        public ParcelaRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
+
+        /// <summary>Mesma junção Parcela↔Fatura que ParcelaRepository faz no banco (ver UC15).</summary>
+        public Task<decimal> ObterTotalParcelasNaoPagasAsync(int idCartao, CancellationToken ct = default)
+        {
+            var total = Armazem.Tabela<Fatura>()
+                .Where(f => f.IdCartao == idCartao && f.Status != StatusFatura.Paga)
+                .Join(Armazem.Tabela<Parcela>(), f => f.IdFatura, p => p.IdFatura, (f, p) => p.Valor)
+                .Sum();
+
+            return Task.FromResult(total);
+        }
+    }
+
     public class TransacaoRepositoryFake : RepositorioFake<Transacao>, ITransacaoRepository
     {
         public TransacaoRepositoryFake(ArmazemFake? armazem = null) : base(armazem) { }
