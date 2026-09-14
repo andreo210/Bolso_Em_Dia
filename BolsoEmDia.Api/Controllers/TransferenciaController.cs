@@ -23,6 +23,19 @@ namespace BolsoEmDia.Api.Controllers
         }
 
         /// <summary>
+        /// Lista as transferências do usuário autenticado, paginadas, com filtros opcionais de
+        /// conta (origem ou destino) e período.
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult> ObterPaginado(
+            CancellationToken ct,
+            [FromQuery] ConsultaPaginadaRequest consulta,
+            [FromQuery] int? idConta = null,
+            [FromQuery] DateTime? dataInicio = null,
+            [FromQuery] DateTime? dataFim = null)
+            => CustomResponse(await _service.ObterPaginadoAsync(consulta, idConta, dataInicio, dataFim, ct));
+
+        /// <summary>
         /// Registra uma transferência entre duas contas do usuário: debita o valor da conta de
         /// origem e credita o mesmo valor na conta de destino, de forma atômica.
         /// </summary>

@@ -1,0 +1,142 @@
+@page "/faturas/{Id:int}/pagamento"
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Fatura
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Fatura
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Fatura
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IFaturaService FaturaService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Pagar Fatura — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Pagar Fatura</h5>
+    </div>
+    <div class="card-body">
+        @if (carregando)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (fatura is not null)
+        {
+            <p class="text-muted">
+                Mês <strong>@fatura.MesReferencia.ToString("MM/yyyy")</strong> —
+                vencimento <strong>@fatura.DataVencimento.ToString("dd/MM/yyyy")</strong> —
+                valor <strong>@fatura.ValorTotal.ToString("C2")</strong>
+            </p>
+
+            <EditForm Model="@pagamento" OnValidSubmit="@ManipularEnvio">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="pagamento.IdCategoria" class="form-select">
+                        <option value="0">Selecione...</option>
+                        @foreach (var categoria in categoriasDespesa)
+                        {
+                            <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => pagamento.IdCategoria)" />
+                    <div class="form-text">Categoria da despesa lançada na conta de pagamento do cartão.</div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Pagando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Pagar</span>
+                        }
+                    </button>
+                    <a href="/faturas" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private FaturaResponse? fatura;
+    private PagarFaturaRequest pagamento = new();
+    private List<CategoriaResponse> categorias = new();
+    private bool carregando = true;
+    private bool processando;
+
+    // Pagamento de fatura vira uma despesa (UC04) — só categorias ativas do tipo Despesa fazem sentido aqui.
+    private List<CategoriaResponse> categoriasDespesa =>
+        categorias.Where(c => c.Ativa && c.Tipo == TipoCategoria.Despesa).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        fatura = await FaturaService.ObterPorId(Id);
+
+        if (fatura is null)
+        {
+            NotificacaoService.ShowWarning("Fatura não encontrada");
+            Navegacao.NavigateTo("/faturas");
+            return;
+        }
+
+        if (fatura.Status == StatusFatura.Paga)
+        {
+            NotificacaoService.ShowWarning("Fatura já está paga");
+            Navegacao.NavigateTo("/faturas");
+            return;
+        }
+
+        try
+        {
+            categorias = await CategoriaService.ObterTodos() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}");
+        }
+
+        carregando = false;
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var paga = await FaturaService.RegistrarPagamento(Id, pagamento);
+
+            if (paga != null)
+            {
+                NotificacaoService.ShowSuccess("Fatura paga com sucesso!", "Pagamento Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/faturas");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+            // (ex.: saldo insuficiente na conta de pagamento — ver UC05, checado só no servidor)
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao pagar fatura: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

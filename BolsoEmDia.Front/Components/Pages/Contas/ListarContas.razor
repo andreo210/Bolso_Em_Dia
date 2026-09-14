@@ -1,0 +1,239 @@
+@page "/contas"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Components.Notificacao
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Contas — BolsoEmDia</PageTitle>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+<TabelaGenerica TItem="ContaResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="contas"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarContas"
+                SelecaoHabilitada="false"
+                Titulo="Contas"
+                PlaceholderBusca="Pesquisar por nome..."
+                MensagemVazio="Nenhuma conta cadastrada"
+                MensagemVazioDetalhe="Cadastre a primeira conta para começar a controlar suas finanças."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/contas/novo" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Conta
+        </a>
+    </AcoesCabecalho>
+    <FiltrosAdicionais>
+        <select class="form-select" value="@filtroSituacao" @onchange="AlterarFiltroSituacao">
+            <option value="">Todas as situações</option>
+            <option value="true">Somente ativas</option>
+            <option value="false">Somente inativas</option>
+        </select>
+    </FiltrosAdicionais>
+    <AcoesTemplate Context="conta">
+        <div class="btn-group" role="group">
+            <button class="btn btn-sm btn-outline-secondary" title="Ver saldo" @onclick="() => VerSaldo(conta)">
+                <i class="bi bi-cash-coin"></i>
+            </button>
+            <a class="btn btn-sm btn-outline-primary" title="Editar" href="@($"/contas/editar/{conta.IdConta}")">
+                <i class="bi bi-pencil"></i>
+            </a>
+            @if (conta.Ativa)
+            {
+                <button class="btn btn-sm btn-outline-danger" title="Inativar" @onclick="() => InativarConta(conta)">
+                    <i class="bi bi-slash-circle"></i>
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-sm btn-outline-success" title="Ativar" @onclick="() => AtivarConta(conta)">
+                    <i class="bi bi-check-circle"></i>
+                </button>
+            }
+        </div>
+    </AcoesTemplate>
+</TabelaGenerica>
+
+@code {
+    private ConfirmDialog? confirmDialog;
+
+    // A Api não pagina nem filtra contas (GET /api/v1/contas devolve a lista inteira
+    // do usuário) — busca, ordenação e paginação abaixo rodam sobre essa lista completa,
+    // então TotalItens continua honesto (não é uma página fatiada do servidor).
+    private List<ContaResponse> todasContas = new();
+    private List<ContaResponse> contas = new();
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+    private string filtroSituacao = string.Empty;
+
+    private List<ColunaTabela<ContaResponse>> colunas => new()
+    {
+        new ColunaTabela<ContaResponse>
+        {
+            Titulo = "Nome",
+            Propriedade = nameof(ContaResponse.Nome),
+            Ordenavel = true,
+            Largura = "30%"
+        },
+        new ColunaTabela<ContaResponse>
+        {
+            Titulo = "Tipo",
+            Propriedade = nameof(ContaResponse.Tipo),
+            Valor = c => ObterNomeTipo(c.Tipo),
+            Ordenavel = true,
+            Largura = "20%"
+        },
+        new ColunaTabela<ContaResponse>
+        {
+            Titulo = "Saldo inicial",
+            Propriedade = nameof(ContaResponse.SaldoInicial),
+            Valor = c => c.SaldoInicial.ToString("C2"),
+            Ordenavel = true,
+            Alinhamento = "right",
+            Largura = "20%"
+        },
+        new ColunaTabela<ContaResponse>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = c =>
+                @<span class="badge @(c.Ativa ? "bg-success" : "bg-secondary")">
+                    @(c.Ativa ? "Ativa" : "Inativa")
+                </span>,
+            Largura = "15%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync() => await CarregarContas();
+
+    private async Task CarregarContas()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await ContaService.ObterTodos();
+            todasContas = resultado ?? new();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas: {ex.Message}");
+            todasContas = new();
+        }
+        finally
+        {
+            AplicarFiltroOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarFiltroOrdenacaoPaginacao()
+    {
+        IEnumerable<ContaResponse> query = todasContas;
+
+        if (!string.IsNullOrWhiteSpace(termoBuscaGlobal))
+            query = query.Where(c => c.Nome.Contains(termoBuscaGlobal.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(filtroSituacao))
+        {
+            var ativa = bool.Parse(filtroSituacao);
+            query = query.Where(c => c.Ativa == ativa);
+        }
+
+        query = ordenacaoPropriedade switch
+        {
+            nameof(ContaResponse.Tipo) => ordenacaoDirecao == "asc"
+                ? query.OrderBy(c => c.Tipo)
+                : query.OrderByDescending(c => c.Tipo),
+            nameof(ContaResponse.SaldoInicial) => ordenacaoDirecao == "asc"
+                ? query.OrderBy(c => c.SaldoInicial)
+                : query.OrderByDescending(c => c.SaldoInicial),
+            _ => ordenacaoDirecao == "desc"
+                ? query.OrderByDescending(c => c.Nome)
+                : query.OrderBy(c => c.Nome)
+        };
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        contas = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+
+    private static string ObterNomeTipo(TipoConta tipo) => tipo switch
+    {
+        TipoConta.Corrente => "Corrente",
+        TipoConta.Poupanca => "Poupança",
+        TipoConta.Carteira => "Carteira",
+        TipoConta.Investimento => "Investimento",
+        _ => tipo.ToString()
+    };
+
+    private async Task AlterarFiltroSituacao(ChangeEventArgs e)
+    {
+        filtroSituacao = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarContas();
+    }
+
+    // UC05 — Verificar saldo da conta
+    private async Task VerSaldo(ContaResponse conta)
+    {
+        var saldo = await ContaService.ObterSaldo(conta.IdConta);
+
+        if (saldo is null)
+            return; // recusa/erro da Api já foi notificado pelo ApiHttpService
+
+        NotificacaoService.ShowInfo(
+            $"Saldo de \"{conta.Nome}\" em {saldo.DataReferencia:dd/MM/yyyy}: {saldo.Saldo:C2}",
+            "Saldo da conta");
+    }
+
+    private async Task InativarConta(ContaResponse conta)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente inativar a conta \"{conta.Nome}\"? Ela deixará de aparecer nas operações do dia a dia.",
+            "Inativar Conta");
+
+        if (!confirmado) return;
+
+        if (await ContaService.Inativar(conta.IdConta))
+        {
+            NotificacaoService.ShowSuccess("Conta inativada com sucesso!");
+
+            if (contas.Count == 1 && paginaAtual > 1)
+                paginaAtual--;
+
+            await CarregarContas();
+        }
+    }
+
+    private async Task AtivarConta(ContaResponse conta)
+    {
+        if (await ContaService.Ativar(conta.IdConta))
+        {
+            NotificacaoService.ShowSuccess("Conta ativada com sucesso!");
+            await CarregarContas();
+        }
+    }
+}

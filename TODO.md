@@ -34,6 +34,10 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC15 — Verificar limite disponível do cartão — implementado junto de UC14 (`IParcelaRepository.ObterTotalParcelasNaoPagasAsync` + `Cartao.LimiteDisponivel`)
 - [x] UC16 — Gerar parcelas da compra — implementado junto de UC14 (`Compra.Registrar` + `Cartao.ObterOuAbrirFaturaParaLancamento`)
 - [x] UC17 — Pagar fatura — `FaturaService`/`FaturaController` (`POST /api/v1/faturas/{id}/pagamento`, inclui UC04; `Fatura.RegistrarPagamento` passou a aceitar Aberta→Paga para pagamento antecipado, ver diagrama-estados.md)
+- [x] UC18 — Criar recorrência — `RecorrenciaService`/`RecorrenciaController` (`POST /api/v1/recorrencias`)
+- [x] UC19 — Pausar / cancelar recorrência — implementado junto de UC18 (`PATCH /api/v1/recorrencias/{id}/pausar`, `PATCH /api/v1/recorrencias/{id}/reativar`; "cancelar" mapeia para `Pausar()`, ver zona cinzenta em especificacao-casos-de-uso.md)
+- [x] UC21 — Gerar ocorrência de recorrência — `RecorrenciaJob` (hosted service em `BolsoEmDia.Api/Jobs`) + `RecorrenciaJobService` (`BolsoEmDia.Application`); roda diariamente à meia-noite, gera `Transacao`/`Compra` a partir de cada `Recorrencia` ativa. Não reaproveita `ITransacaoService`/`ICompraService` (dependem de `ICurrentUser`/`HttpContext`, inexistente no job) — replica a mesma checagem de saldo/limite localmente, mesmo padrão de `FaturaService` para UC17→UC04. Bloqueio de saldo/limite só loga e segue o lote (A1); falha de infra é capturada no job para não derrubar o host.
+- [x] UC20 — Fechar fatura do ciclo — `FechamentoFaturaJob` (hosted service em `BolsoEmDia.Api/Jobs`) + `FechamentoFaturaJobService` (`BolsoEmDia.Application`); roda diariamente à meia-noite, mesmo padrão de `RecorrenciaJob`. Para cada `Cartao` ativo com `DiaFechamento == hoje`, fecha a fatura `Aberta` (se existir) e garante a fatura do próximo ciclo via `Cartao.AbrirFatura`. Sem fatura aberta ainda (cartão sem nenhuma compra) só garante o próximo ciclo, sem erro — é o outro caminho de abertura citado em UC13. Sem caminho de erro de negócio (não usa `INotificadorService`); falha de infra é capturada no job.
 
 ## Em andamento
 
@@ -41,17 +45,35 @@ _Nada em andamento no momento._
 
 ## A fazer
 
-Falta a camada Application/Api dos demais casos de uso (Domain e Infra já prontos para todos):
-
-### Cartão de crédito
-- [ ] UC20 — Fechar fatura do ciclo (job agendado)
-
-### Recorrências
-- [ ] UC18 — Criar recorrência
-- [ ] UC19 — Pausar / cancelar recorrência
-- [ ] UC21 — Gerar ocorrência de recorrência (job agendado; inclui UC03, UC04 ou UC14)
+_Api: nenhum caso de uso pendente — os 21 UCs estão implementados. Front: ainda é o template padrão do Blazor (Home/Counter/Weather), nada de negócio foi construído — ver seção "Front" abaixo._
 
 ### Infra / qualidade (fora dos casos de uso)
-- [ ] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
-- [ ] Corrigir `README.md` (hoje é o placeholder padrão do GitHub, em UTF-16)
-- [ ] Remover pastas vazias soltas (`Bolso_Em_Dia/` na raiz, `BolsoEmDia.Domain/NovaPasta/`)
+- [x] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
+- [x] Corrigir `README.md` (era uma cópia acidental de `docs/modelagem/README.md`; agora descreve o projeto)
+- [x] Remover pastas vazias soltas (`Bolso_Em_Dia/` na raiz; `BolsoEmDia.Domain/NovaPasta/` já não existia)
+
+## Front
+
+Segue a skill `arquitetura-front`. UC20 e UC21 são jobs automáticos (ator "job agendado") — sem tela.
+
+### Infraestrutura (pré-requisito para qualquer tela)
+- [x] `appsettings.json` do Front: seção `ApiConfig:BaseUrlApiLocacao`
+- [x] `Program.cs`: `AddServices(...)`, autenticação por cookie (login grava só `access_token` em `AuthenticationProperties` — a Api não emite refresh token), `FallbackPolicy` exigindo autenticação em toda rota por padrão
+- [x] `Routes.razor`: `AddCascadingAuthenticationState()` + `AuthorizeRouteView` + `RedirectToLogin`
+- [x] Tela de login (`/login`) e registro (`/registrar`) — páginas SSR estáticas (sem `@rendermode`) postando pra endpoints minimalistas `/auth/login` e `/auth/registrar` (não podem ser `/login`/`/registrar`: `MapRazorComponents` já registra esses caminhos pra todo verbo HTTP, e endpoint minimalista no mesmo caminho dá `AmbiguousMatchException`). Registro loga automaticamente após criar a conta.
+- [x] Endpoint de logout (`POST /auth/logout`, derruba o cookie)
+- [x] `MainLayout.razor`: montado `NotificationDisplay` (global) + link/form de logout na `top-row`. `ConfirmDialog` fica de fora de propósito — é `@ref` por página que confirma, não global.
+- [x] `NavMenu.razor`: removidos os links de template; fica só "Início" por enquanto (visível só autenticado) — cada área ganha item conforme a tela é construída abaixo
+- [x] Removidas `Counter.razor` e `Weather.razor`
+
+### Telas por área (mesma ordem das dependências do back)
+- [x] Contas — UC01/02/05: listagem (`TabelaGenerica`), form de cadastro/edição, ativar/inativar, exibir saldo — `ListarContas`/`CriarConta`/`EditarConta` (`/contas`, `/contas/novo`, `/contas/editar/{id}`); `GET /api/v1/contas` não pagina (devolve a lista inteira do usuário), então busca/ordenação/paginação da `TabelaGenerica` rodam em memória sobre a lista completa, não sobre uma fatia do servidor; saldo (UC05) é exibido via toast a partir da ação "Ver saldo" por linha
+- [x] Transações — UC03/04/10: lançar receita, lançar despesa (toast de orçamento estourado vem pronto do `ApiHttpService`), listagem — `ListarTransacoes`/`LancarTransacao` (`/transacoes`, `/transacoes/nova`)
+- [x] Transferências — UC06: form entre duas contas + listagem — `ListarTransferencias`/`NovaTransferencia` (`/transferencias`, `/transferencias/nova`); a Api só tinha `POST /api/v1/transferencias` (sem UC próprio de listagem), então a listagem paginada foi adicionada em `TransferenciaService.ObterPaginadoAsync`/`TransferenciaController.ObterPaginado` seguindo o mesmo padrão de `TransacaoService`, antes de montar a tela
+- [x] Categorias — UC07: cadastro + listagem (alimenta o formulário de transação e de orçamento) — `ListarCategorias`/`CriarCategoria` (`/categorias`, `/categorias/nova`); Api não pagina (`GET /api/v1/categorias` devolve a lista inteira do usuário, igual Contas), então busca/ordenação/paginação rodam em memória; sem tela de editar/ativar/inativar porque a Api não expõe esses endpoints (só `ObterTodos`/`ObterPorId`/`Criar`)
+- [x] Orçamento — UC08/09: definir orçamento mensal por categoria + acompanhar progresso — `ListarOrcamentos`/`DefinirOrcamento` (`/orcamentos`, `/orcamentos/novo`); a listagem busca o progresso (gasto/percentual/estourado) de cada orçamento via `GET /orcamentos/progresso` em paralelo (`Task.WhenAll`) e mostra barra de progresso + badge "Estourado"; `POST /orcamentos` é upsert (já existia na Api), então o mesmo form cadastra ou substitui a meta do mês
+- [x] Metas de economia — UC11/12: criar meta, registrar aporte, listagem com progresso — `ListarMetas`/`CriarMeta`/`RegistrarAporte` (`/metas`, `/metas/nova`, `/metas/{id}/aportes/novo`); progresso já vem pronto no `MetaEconomiaDto.TotalAportado`, sem chamada extra por linha (diferente de Orçamento); form de aporte não expõe `IdTransacao` (opcional na Api) para manter simples — aporte solto, sem vincular a uma transação já lançada
+- [x] Cartões de crédito — UC13: cadastro + listagem — `ListarCartoes`/`CriarCartao` (`/cartoes`, `/cartoes/novo`); Api não pagina (`GET /api/v1/cartoes` devolve a lista inteira do usuário, igual Categorias), então busca/ordenação/paginação rodam em memória; form pede a conta de pagamento (`IdContaPagamento`) via dropdown com as contas ativas, igual o vínculo opcional de Metas
+- [x] Compras no cartão — UC14/15/16: form de compra (parcelas) + listagem — `ListarCompras`/`RegistrarCompra` (`/compras`, `/compras/nova`); Api não pagina (igual Cartões/Categorias); limite disponível (UC15) não é checado no front — a Api recusa com `ProblemDetails` e o toast já sai pronto do `ApiHttpService`, então não faz sentido duplicar a soma de parcelas aqui; form só oferece categorias do tipo Despesa (compra no cartão nunca é receita)
+- [x] Faturas — UC17: listagem por cartão + pagamento — `ListarFaturas`/`PagarFatura` (`/faturas`, `/faturas/{id}/pagamento`); Api não pagina (igual Cartões/Compras); ação "Pagar" só aparece para fatura != Paga (`Aberta`/`Fechada`, ver diagrama-estados.md sobre pagamento antecipado); form só pede `IdCategoria` — conta de pagamento e valor vêm do cartão/fatura no servidor, saldo insuficiente (UC05) é checado só na Api
+- [ ] Recorrências — UC18/19: criar, pausar/reativar, listagem

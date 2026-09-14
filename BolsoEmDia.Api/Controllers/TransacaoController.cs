@@ -2,6 +2,7 @@ using System.Net;
 using BolsoEmDia.Application.Configuration.Utils.NotificadorServices;
 using BolsoEmDia.Application.Models.Dto;
 using BolsoEmDia.Application.Services.TransacaoServices;
+using BolsoEmDia.Domain.Entidades;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,6 +22,21 @@ namespace BolsoEmDia.Api.Controllers
         {
             _service = service;
         }
+
+        /// <summary>
+        /// Lista as transações do usuário autenticado, paginadas, com filtros opcionais de
+        /// conta, categoria, tipo e período.
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult> ObterPaginado(
+            CancellationToken ct,
+            [FromQuery] ConsultaPaginadaRequest consulta,
+            [FromQuery] int? idConta = null,
+            [FromQuery] int? idCategoria = null,
+            [FromQuery] TipoTransacao? tipo = null,
+            [FromQuery] DateTime? dataInicio = null,
+            [FromQuery] DateTime? dataFim = null)
+            => CustomResponse(await _service.ObterPaginadoAsync(consulta, idConta, idCategoria, tipo, dataInicio, dataFim, ct));
 
         /// <summary>
         /// Registra uma receita, somando o valor ao saldo da conta informada.

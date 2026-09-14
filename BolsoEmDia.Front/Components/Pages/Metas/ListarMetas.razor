@@ -1,0 +1,156 @@
+@page "/metas"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Response.Meta
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Meta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IMetaEconomiaService MetaService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Metas de Economia — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="MetaEconomiaResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="metas"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarMetas"
+                SelecaoHabilitada="false"
+                Titulo="Metas de Economia"
+                PlaceholderBusca="Pesquisar por nome..."
+                MensagemVazio="Nenhuma meta cadastrada"
+                MensagemVazioDetalhe="Crie uma meta para começar a acompanhar seus objetivos de economia."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/metas/nova" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Meta
+        </a>
+    </AcoesCabecalho>
+    <AcoesTemplate Context="meta">
+        <a class="btn btn-sm btn-outline-primary" title="Registrar aporte" href="@($"/metas/{meta.IdMeta}/aportes/novo")">
+            <i class="bi bi-piggy-bank"></i>
+        </a>
+    </AcoesTemplate>
+</TabelaGenerica>
+
+@code {
+    // A Api não pagina nem filtra metas (GET /api/v1/metas devolve a lista inteira
+    // do usuário) — busca, ordenação e paginação abaixo rodam sobre essa lista
+    // completa, então TotalItens continua honesto (não é uma página fatiada do servidor).
+    private List<MetaEconomiaResponse> todasMetas = new();
+    private List<MetaEconomiaResponse> metas = new();
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+
+    private List<ColunaTabela<MetaEconomiaResponse>> colunas => new()
+    {
+        new ColunaTabela<MetaEconomiaResponse>
+        {
+            Titulo = "Nome",
+            Propriedade = nameof(MetaEconomiaResponse.Nome),
+            Ordenavel = true,
+            Largura = "22%"
+        },
+        new ColunaTabela<MetaEconomiaResponse>
+        {
+            Titulo = "Alvo",
+            Valor = m => m.ValorAlvo.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "14%"
+        },
+        new ColunaTabela<MetaEconomiaResponse>
+        {
+            Titulo = "Aportado",
+            Valor = m => m.TotalAportado.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "14%"
+        },
+        new ColunaTabela<MetaEconomiaResponse>
+        {
+            Titulo = "Progresso",
+            Ordenavel = false,
+            Template = m =>
+                @<div class="progress" style="height: 1.25rem;" title="@ObterPercentual(m).ToString("P0")">
+                    <div class="progress-bar @(m.Concluida ? "bg-success" : "bg-primary")"
+                         style="width: @(Math.Min((double)ObterPercentual(m) * 100, 100))%">
+                        @ObterPercentual(m).ToString("P0")
+                    </div>
+                </div>,
+            Largura = "22%"
+        },
+        new ColunaTabela<MetaEconomiaResponse>
+        {
+            Titulo = "Prazo",
+            Ordenavel = false,
+            Valor = m => m.DataAlvo.HasValue ? m.DataAlvo.Value.ToString("dd/MM/yyyy") : "—",
+            Largura = "13%"
+        },
+        new ColunaTabela<MetaEconomiaResponse>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = m =>
+                @<span class="badge @(m.Concluida ? "bg-success" : "bg-secondary")">
+                    @(m.Concluida ? "Concluída" : "Em andamento")
+                </span>,
+            Largura = "15%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync() => await CarregarMetas();
+
+    private async Task CarregarMetas()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await MetaService.ObterTodos();
+            todasMetas = resultado ?? new();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar metas: {ex.Message}");
+            todasMetas = new();
+        }
+        finally
+        {
+            AplicarFiltroOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarFiltroOrdenacaoPaginacao()
+    {
+        IEnumerable<MetaEconomiaResponse> query = todasMetas;
+
+        if (!string.IsNullOrWhiteSpace(termoBuscaGlobal))
+            query = query.Where(m => m.Nome.Contains(termoBuscaGlobal.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        query = ordenacaoDirecao == "desc"
+            ? query.OrderByDescending(m => m.Nome)
+            : query.OrderBy(m => m.Nome);
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        metas = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+
+    private static decimal ObterPercentual(MetaEconomiaResponse meta) =>
+        meta.ValorAlvo <= 0 ? 0 : meta.TotalAportado / meta.ValorAlvo;
+}

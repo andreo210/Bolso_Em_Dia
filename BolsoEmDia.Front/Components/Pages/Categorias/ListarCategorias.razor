@@ -1,0 +1,154 @@
+@page "/categorias"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Categorias — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="CategoriaResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="categorias"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarCategorias"
+                SelecaoHabilitada="false"
+                Titulo="Categorias"
+                PlaceholderBusca="Pesquisar por nome..."
+                MensagemVazio="Nenhuma categoria cadastrada"
+                MensagemVazioDetalhe="Cadastre a primeira categoria para lançar transações."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/categorias/nova" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Categoria
+        </a>
+    </AcoesCabecalho>
+    <FiltrosAdicionais>
+        <select class="form-select" value="@filtroTipo" @onchange="AlterarFiltroTipo">
+            <option value="">Todos os tipos</option>
+            <option value="@((int)TipoCategoria.Receita)">Receita</option>
+            <option value="@((int)TipoCategoria.Despesa)">Despesa</option>
+        </select>
+    </FiltrosAdicionais>
+</TabelaGenerica>
+
+@code {
+    // A Api não pagina nem filtra categorias (GET /api/v1/categorias devolve a lista
+    // inteira do usuário) — busca, ordenação e paginação abaixo rodam sobre essa lista
+    // completa, então TotalItens continua honesto (não é uma página fatiada do servidor).
+    private List<CategoriaResponse> todasCategorias = new();
+    private List<CategoriaResponse> categorias = new();
+    private Dictionary<int, string> nomesCategorias = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+    private string filtroTipo = string.Empty;
+
+    private List<ColunaTabela<CategoriaResponse>> colunas => new()
+    {
+        new ColunaTabela<CategoriaResponse>
+        {
+            Titulo = "Nome",
+            Propriedade = nameof(CategoriaResponse.Nome),
+            Ordenavel = true,
+            Largura = "30%"
+        },
+        new ColunaTabela<CategoriaResponse>
+        {
+            Titulo = "Tipo",
+            Ordenavel = false,
+            Template = c =>
+                @<span class="badge @(c.Tipo == TipoCategoria.Receita ? "bg-success" : "bg-danger")">
+                    @(c.Tipo == TipoCategoria.Receita ? "Receita" : "Despesa")
+                </span>,
+            Largura = "20%"
+        },
+        new ColunaTabela<CategoriaResponse>
+        {
+            Titulo = "Categoria pai",
+            Ordenavel = false,
+            Valor = c => c.IdCategoriaPai.HasValue ? nomesCategorias.GetValueOrDefault(c.IdCategoriaPai.Value, "—") : "—",
+            Largura = "30%"
+        },
+        new ColunaTabela<CategoriaResponse>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = c =>
+                @<span class="badge @(c.Ativa ? "bg-success" : "bg-secondary")">
+                    @(c.Ativa ? "Ativa" : "Inativa")
+                </span>,
+            Largura = "20%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync() => await CarregarCategorias();
+
+    private async Task CarregarCategorias()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await CategoriaService.ObterTodos();
+            todasCategorias = resultado ?? new();
+            nomesCategorias = todasCategorias.ToDictionary(c => c.IdCategoria, c => c.Nome);
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}");
+            todasCategorias = new();
+        }
+        finally
+        {
+            AplicarFiltroOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarFiltroOrdenacaoPaginacao()
+    {
+        IEnumerable<CategoriaResponse> query = todasCategorias;
+
+        if (!string.IsNullOrWhiteSpace(termoBuscaGlobal))
+            query = query.Where(c => c.Nome.Contains(termoBuscaGlobal.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(filtroTipo))
+        {
+            var tipo = (TipoCategoria)int.Parse(filtroTipo);
+            query = query.Where(c => c.Tipo == tipo);
+        }
+
+        query = ordenacaoDirecao == "desc"
+            ? query.OrderByDescending(c => c.Nome)
+            : query.OrderBy(c => c.Nome);
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        categorias = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+
+    private async Task AlterarFiltroTipo(ChangeEventArgs e)
+    {
+        filtroTipo = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarCategorias();
+    }
+}

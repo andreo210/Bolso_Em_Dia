@@ -110,6 +110,21 @@ namespace BolsoEmDia.Tests.Fabricas
         /// só o próprio Cartao pode chamá-lo. Chame <c>ArmazemFake.Semear</c> na fatura devolvida
         /// para que ela ganhe id, do mesmo jeito que qualquer outra entidade nos testes.
         /// </summary>
+        public static Recorrencia Recorrencia(
+            string idUsuario = IdUsuarioPadrao,
+            int? idConta = 1,
+            int? idCartao = null,
+            int idCategoria = 1,
+            TipoTransacao? tipoTransacao = TipoTransacao.Despesa,
+            decimal valor = 100m,
+            FrequenciaRecorrencia frequencia = FrequenciaRecorrencia.Mensal,
+            int diaGeracao = 5,
+            DateTime? dataInicio = null,
+            DateTime? dataFim = null)
+            => Domain.Entidades.Recorrencia.Criar(
+                idUsuario, idConta, idCartao, idCategoria, tipoTransacao,
+                valor, frequencia, diaGeracao, dataInicio ?? DateTime.UtcNow, dataFim);
+
         public static Fatura Fatura(Cartao cartao, decimal valorTotal = 300m, bool fechada = false)
         {
             var mesReferencia = cartao.CalcularMesReferencia(DateTime.UtcNow);

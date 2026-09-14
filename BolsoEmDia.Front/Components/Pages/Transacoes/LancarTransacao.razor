@@ -1,0 +1,232 @@
+@page "/transacoes/nova"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Transacao
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Transacao
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject ITransacaoService TransacaoService
+@inject IContaService ContaService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Transação — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Transação</h5>
+    </div>
+    <div class="card-body">
+        <div class="btn-group w-100 mb-3" role="group">
+            <input type="radio" class="btn-check" id="tipoReceita" checked="@(tipoSelecionado == TipoTransacao.Receita)" @onchange="@(() => tipoSelecionado = TipoTransacao.Receita)" />
+            <label class="btn btn-outline-success" for="tipoReceita"><i class="bi bi-arrow-down-circle me-1"></i>Receita</label>
+
+            <input type="radio" class="btn-check" id="tipoDespesa" checked="@(tipoSelecionado == TipoTransacao.Despesa)" @onchange="@(() => tipoSelecionado = TipoTransacao.Despesa)" />
+            <label class="btn btn-outline-danger" for="tipoDespesa"><i class="bi bi-arrow-up-circle me-1"></i>Despesa</label>
+        </div>
+
+        @if (contas.Count == 0)
+        {
+            <div class="alert alert-warning">Cadastre uma conta antes de lançar uma transação.</div>
+        }
+        else if (categoriasFiltradas.Count == 0)
+        {
+            <div class="alert alert-warning">
+                Nenhuma categoria de @(tipoSelecionado == TipoTransacao.Receita ? "receita" : "despesa") cadastrada ainda.
+                Cadastre uma pela Api (Swagger) para poder lançar.
+            </div>
+        }
+
+        @if (tipoSelecionado == TipoTransacao.Receita)
+        {
+            <EditForm Model="@receita" OnValidSubmit="@ManipularEnvioReceita">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Conta <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="receita.IdConta" class="form-select">
+                        <option value="0">Selecione...</option>
+                        @foreach (var conta in contas)
+                        {
+                            <option value="@conta.IdConta">@conta.Nome</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => receita.IdConta)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="receita.IdCategoria" class="form-select">
+                        <option value="0">Selecione...</option>
+                        @foreach (var categoria in categoriasFiltradas)
+                        {
+                            <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => receita.IdCategoria)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Data <span class="text-danger">*</span></label>
+                    <InputDate @bind-Value="receita.Data" class="form-control" />
+                    <ValidationMessage For="@(() => receita.Data)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Valor <span class="text-danger">*</span></label>
+                    <InputMoeda @bind-Value="receita.Valor" />
+                    <ValidationMessage For="@(() => receita.Valor)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Descrição</label>
+                    <InputText @bind-Value="receita.Descricao" class="form-control" />
+                    <ValidationMessage For="@(() => receita.Descricao)" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                        }
+                    </button>
+                    <a href="/transacoes" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <EditForm Model="@despesa" OnValidSubmit="@ManipularEnvioDespesa">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Conta <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="despesa.IdConta" class="form-select">
+                        <option value="0">Selecione...</option>
+                        @foreach (var conta in contas)
+                        {
+                            <option value="@conta.IdConta">@conta.Nome</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => despesa.IdConta)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="despesa.IdCategoria" class="form-select">
+                        <option value="0">Selecione...</option>
+                        @foreach (var categoria in categoriasFiltradas)
+                        {
+                            <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => despesa.IdCategoria)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Data <span class="text-danger">*</span></label>
+                    <InputDate @bind-Value="despesa.Data" class="form-control" />
+                    <ValidationMessage For="@(() => despesa.Data)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Valor <span class="text-danger">*</span></label>
+                    <InputMoeda @bind-Value="despesa.Valor" />
+                    <ValidationMessage For="@(() => despesa.Valor)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Descrição</label>
+                    <InputText @bind-Value="despesa.Descricao" class="form-control" />
+                    <ValidationMessage For="@(() => despesa.Descricao)" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                        }
+                    </button>
+                    <a href="/transacoes" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private TipoTransacao tipoSelecionado = TipoTransacao.Receita;
+    private CriarReceitaRequest receita = new();
+    private CriarDespesaRequest despesa = new();
+    private List<ContaResponse> contas = new();
+    private List<CategoriaResponse> categorias = new();
+    private bool processando;
+
+    private List<CategoriaResponse> categoriasFiltradas =>
+        categorias.Where(c => c.Ativa && (int)c.Tipo == (int)tipoSelecionado).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            contas = (await ContaService.ObterTodos() ?? new()).Where(c => c.Ativa).ToList();
+            categorias = await CategoriaService.ObterTodos() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas/categorias: {ex.Message}");
+        }
+    }
+
+    private Task ManipularEnvioReceita() => ManipularEnvio(() => TransacaoService.RegistrarReceita(receita));
+
+    private Task ManipularEnvioDespesa() => ManipularEnvio(() => TransacaoService.RegistrarDespesa(despesa));
+
+    private async Task ManipularEnvio(Func<Task<BolsoEmDia.Front.Models.Response.Transacao.TransacaoResponse?>> registrar)
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await registrar();
+
+            if (resultado != null)
+            {
+                if (!string.IsNullOrWhiteSpace(resultado.AlertaOrcamento))
+                    NotificacaoService.ShowWarning(resultado.AlertaOrcamento, "Orçamento estourado");
+                else
+                    NotificacaoService.ShowSuccess("Transação lançada com sucesso!", "Lançamento Realizado");
+
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/transacoes");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao lançar transação: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,5 +1,15 @@
 using BolsoEmDia.Front.Services.Configuration;
 using BolsoEmDia.Front.Services.Servicos;
+using BolsoEmDia.Front.Services.Servicos.Autenticacao;
+using BolsoEmDia.Front.Services.Servicos.Cartao;
+using BolsoEmDia.Front.Services.Servicos.Categoria;
+using BolsoEmDia.Front.Services.Servicos.Compra;
+using BolsoEmDia.Front.Services.Servicos.Conta;
+using BolsoEmDia.Front.Services.Servicos.Fatura;
+using BolsoEmDia.Front.Services.Servicos.Meta;
+using BolsoEmDia.Front.Services.Servicos.Orcamento;
+using BolsoEmDia.Front.Services.Servicos.Transacao;
+using BolsoEmDia.Front.Services.Servicos.Transferencia;
 using BolsoEmDia.Front.Services.Utils.Notificacao;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,8 +47,18 @@ namespace BolsoEmDia.Front.Services.Extensions
             })
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
 
+            services.AddScoped<IAutenticacaoService, AutenticacaoService>();
+
             // Um registro por área — a partir daqui é o CRUD do projeto:
-            // services.AddScoped<IXxxService, XxxService>();
+            services.AddScoped<IContaService, ContaService>();
+            services.AddScoped<ITransacaoService, TransacaoService>();
+            services.AddScoped<ICategoriaService, CategoriaService>();
+            services.AddScoped<ITransferenciaService, TransferenciaService>();
+            services.AddScoped<IOrcamentoService, OrcamentoService>();
+            services.AddScoped<IMetaEconomiaService, MetaEconomiaService>();
+            services.AddScoped<ICartaoService, CartaoService>();
+            services.AddScoped<ICompraService, CompraService>();
+            services.AddScoped<IFaturaService, FaturaService>();
 
             return services;
         }

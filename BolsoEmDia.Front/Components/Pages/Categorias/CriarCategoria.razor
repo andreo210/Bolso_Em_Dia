@@ -1,0 +1,116 @@
+@page "/categorias/nova"
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Categoria
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Categoria — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Categoria</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="@categoria" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                <InputText @bind-Value="categoria.Nome" class="form-control" autofocus />
+                <ValidationMessage For="@(() => categoria.Nome)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tipo <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="categoria.Tipo" class="form-select" @onchange="@(() => categoria.IdCategoriaPai = null)">
+                    <option value="@TipoCategoria.Receita">Receita</option>
+                    <option value="@TipoCategoria.Despesa">Despesa</option>
+                </InputSelect>
+                <ValidationMessage For="@(() => categoria.Tipo)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Categoria pai</label>
+                <InputSelect @bind-Value="categoria.IdCategoriaPai" class="form-select">
+                    <option value="">Nenhuma (categoria principal)</option>
+                    @foreach (var pai in categoriasPaisDisponiveis)
+                    {
+                        <option value="@pai.IdCategoria">@pai.Nome</option>
+                    }
+                </InputSelect>
+                <div class="form-text">Só categorias principais do mesmo tipo podem ser categoria-pai.</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/categorias" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarCategoriaRequest categoria = new();
+    private List<CategoriaResponse> categorias = new();
+    private bool processando;
+
+    // E1 (regra de negócio, ver CategoriaService.ValidarCategoriaPaiAsync): categoria-pai
+    // precisa ser do mesmo tipo, ativa e não pode ela própria ser uma subcategoria.
+    private List<CategoriaResponse> categoriasPaisDisponiveis =>
+        categorias.Where(c => c.Ativa && c.Tipo == categoria.Tipo && c.IdCategoriaPai is null).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            categorias = await CategoriaService.ObterTodos() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var criada = await CategoriaService.Inserir(categoria);
+
+            if (criada != null)
+            {
+                NotificacaoService.ShowSuccess("Categoria cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/categorias");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar categoria: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

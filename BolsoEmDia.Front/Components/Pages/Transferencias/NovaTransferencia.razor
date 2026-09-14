@@ -1,0 +1,133 @@
+@page "/transferencias/nova"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Request.Transferencia
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Transferencia
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject ITransferenciaService TransferenciaService
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Transferência — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Transferência</h5>
+    </div>
+    <div class="card-body">
+        @if (contas.Count < 2)
+        {
+            <div class="alert alert-warning">Cadastre pelo menos duas contas ativas para transferir entre elas.</div>
+        }
+
+        <EditForm Model="@transferencia" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Conta de origem <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="transferencia.IdContaOrigem" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var conta in contas)
+                    {
+                        <option value="@conta.IdConta">@conta.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => transferencia.IdContaOrigem)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Conta de destino <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="transferencia.IdContaDestino" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var conta in contas)
+                    {
+                        <option value="@conta.IdConta">@conta.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => transferencia.IdContaDestino)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Data <span class="text-danger">*</span></label>
+                <InputDate @bind-Value="transferencia.Data" class="form-control" />
+                <ValidationMessage For="@(() => transferencia.Data)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Valor <span class="text-danger">*</span></label>
+                <InputMoeda @bind-Value="transferencia.Valor" />
+                <ValidationMessage For="@(() => transferencia.Valor)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Descrição</label>
+                <InputText @bind-Value="transferencia.Descricao" class="form-control" />
+                <ValidationMessage For="@(() => transferencia.Descricao)" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/transferencias" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarTransferenciaRequest transferencia = new();
+    private List<ContaResponse> contas = new();
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            contas = (await ContaService.ObterTodos() ?? new()).Where(c => c.Ativa).ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas: {ex.Message}");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await TransferenciaService.Registrar(transferencia);
+
+            if (resultado != null)
+            {
+                NotificacaoService.ShowSuccess("Transferência realizada com sucesso!", "Transferência Realizada");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/transferencias");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao transferir: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,14 +1,23 @@
 using BolsoEmDia.Application.Configuration.Utils.NotificadorServices;
+using BolsoEmDia.Application.Models.Consultas;
 using BolsoEmDia.Application.Models.Dto;
 using BolsoEmDia.Application.Models.Mappers;
+using BolsoEmDia.Domain;
 using BolsoEmDia.Domain.Entidades;
 using BolsoEmDia.Domain.IRepositorio;
 using BolsoEmDia.Infra.Data.CurrentUsers;
+using System.Linq.Expressions;
 
 namespace BolsoEmDia.Application.Services.TransferenciaServices
 {
     public class TransferenciaService : ITransferenciaService
     {
+        // Ordenação padrão por data mais recente, mesmo critério do extrato de transações.
+        private static readonly OrdenacaoDeConsulta<Transferencia> Ordenacoes =
+            OrdenacaoDeConsulta<Transferencia>.Padrao(t => t.Data, descendente: true)
+                .Com("valor", t => t.Valor)
+                .Com("descricao", t => t.Descricao ?? "");
+
         private readonly ITransferenciaRepository _transferenciaRepository;
         private readonly ITransacaoRepository _transacaoRepository;
         private readonly IContaRepository _contaRepository;
@@ -78,6 +87,34 @@ namespace BolsoEmDia.Application.Services.TransferenciaServices
             }, ct);
 
             return transferencia.ToDto();
+        }
+
+        // Listagem — sem UC próprio: alimenta o extrato de UC06 no front.
+        public async Task<PaginatedResult<TransferenciaDto>> ObterPaginadoAsync(
+            ConsultaPaginadaRequest consulta,
+            int? idConta = null,
+            DateTime? dataInicio = null,
+            DateTime? dataFim = null,
+            CancellationToken ct = default)
+        {
+            var busca = consulta.TermoNormalizado;
+            var idUsuario = IdUsuarioAtual;
+
+            Expression<Func<Transferencia, bool>> filtro = t =>
+                t.IdUsuario == idUsuario
+                && (busca == null || (t.Descricao != null && t.Descricao.ToLower().Contains(busca)))
+                && (idConta == null || t.IdContaOrigem == idConta || t.IdContaDestino == idConta)
+                && (dataInicio == null || t.Data >= dataInicio)
+                && (dataFim == null || t.Data <= dataFim);
+
+            var pagina = await _transferenciaRepository.ObterPaginadoComFiltroAsync(
+                filtro: filtro,
+                ordenarPor: Ordenacoes.Montar(consulta),
+                pagina: consulta.Pagina,
+                itensPorPagina: consulta.ItensPorPagina,
+                ct: ct);
+
+            return pagina.ParaDto(TransferenciaMapper.ToDtoList);
         }
     }
 }

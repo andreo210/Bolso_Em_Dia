@@ -1,7 +1,11 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>BolsoEmDia</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>BolsoEmDia</h1>
 
-Welcome to your new app.
+<AuthorizeView>
+    <Authorized>
+        <p>Bem-vindo(a), @context.User.Identity?.Name.</p>
+    </Authorized>
+</AuthorizeView>

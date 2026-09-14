@@ -1,0 +1,134 @@
+@page "/cartoes"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Response.Cartao
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject ICartaoService CartaoService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Cartões de Crédito — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="CartaoResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="cartoes"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarCartoes"
+                SelecaoHabilitada="false"
+                Titulo="Cartões de Crédito"
+                PlaceholderBusca="Pesquisar por nome..."
+                MensagemVazio="Nenhum cartão cadastrado"
+                MensagemVazioDetalhe="Cadastre um cartão para lançar compras e acompanhar faturas."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/cartoes/novo" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Novo Cartão
+        </a>
+    </AcoesCabecalho>
+</TabelaGenerica>
+
+@code {
+    // A Api não pagina nem filtra cartões (GET /api/v1/cartoes devolve a lista inteira
+    // do usuário) — busca, ordenação e paginação abaixo rodam sobre essa lista completa,
+    // então TotalItens continua honesto (não é uma página fatiada do servidor).
+    private List<CartaoResponse> todosCartoes = new();
+    private List<CartaoResponse> cartoes = new();
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "asc";
+    private string termoBuscaGlobal = string.Empty;
+
+    private List<ColunaTabela<CartaoResponse>> colunas => new()
+    {
+        new ColunaTabela<CartaoResponse>
+        {
+            Titulo = "Nome",
+            Propriedade = nameof(CartaoResponse.Nome),
+            Ordenavel = true,
+            Largura = "25%"
+        },
+        new ColunaTabela<CartaoResponse>
+        {
+            Titulo = "Limite total",
+            Valor = c => c.LimiteTotal.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "20%"
+        },
+        new ColunaTabela<CartaoResponse>
+        {
+            Titulo = "Fechamento",
+            Valor = c => $"dia {c.DiaFechamento}",
+            Ordenavel = false,
+            Largura = "18%"
+        },
+        new ColunaTabela<CartaoResponse>
+        {
+            Titulo = "Vencimento",
+            Valor = c => $"dia {c.DiaVencimento}",
+            Ordenavel = false,
+            Largura = "18%"
+        },
+        new ColunaTabela<CartaoResponse>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = c =>
+                @<span class="badge @(c.Ativo ? "bg-success" : "bg-secondary")">
+                    @(c.Ativo ? "Ativo" : "Inativo")
+                </span>,
+            Largura = "19%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync() => await CarregarCartoes();
+
+    private async Task CarregarCartoes()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await CartaoService.ObterTodos();
+            todosCartoes = resultado ?? new();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar cartões: {ex.Message}");
+            todosCartoes = new();
+        }
+        finally
+        {
+            AplicarFiltroOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarFiltroOrdenacaoPaginacao()
+    {
+        IEnumerable<CartaoResponse> query = todosCartoes;
+
+        if (!string.IsNullOrWhiteSpace(termoBuscaGlobal))
+            query = query.Where(c => c.Nome.Contains(termoBuscaGlobal.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        query = ordenacaoDirecao == "desc"
+            ? query.OrderByDescending(c => c.Nome)
+            : query.OrderBy(c => c.Nome);
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        cartoes = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+}

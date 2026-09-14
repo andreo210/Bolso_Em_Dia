@@ -1,0 +1,98 @@
+@page "/contas/novo"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Conta
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Conta — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Conta</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="@conta" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                <InputText @bind-Value="conta.Nome" class="form-control" autofocus />
+                <ValidationMessage For="@(() => conta.Nome)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tipo <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="conta.Tipo" class="form-select">
+                    <option value="@TipoConta.Corrente">Corrente</option>
+                    <option value="@TipoConta.Poupanca">Poupança</option>
+                    <option value="@TipoConta.Carteira">Carteira</option>
+                    <option value="@TipoConta.Investimento">Investimento</option>
+                </InputSelect>
+                <ValidationMessage For="@(() => conta.Tipo)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Saldo inicial</label>
+                <InputMoeda @bind-Value="conta.SaldoInicial" />
+                <ValidationMessage For="@(() => conta.SaldoInicial)" />
+                @if (conta.Tipo != TipoConta.Corrente)
+                {
+                    <div class="form-text">Somente conta corrente pode começar com saldo negativo.</div>
+                }
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/contas" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarContaRequest conta = new();
+    private bool processando;
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var criada = await ContaService.Inserir(conta);
+
+            if (criada != null)
+            {
+                NotificacaoService.ShowSuccess("Conta cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/contas");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar conta: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}
