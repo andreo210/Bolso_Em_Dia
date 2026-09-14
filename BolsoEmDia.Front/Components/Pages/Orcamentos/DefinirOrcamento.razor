@@ -1,0 +1,120 @@
+@page "/orcamentos/novo"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Request.Orcamento
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Orcamento
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IOrcamentoService OrcamentoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Novo Orçamento — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Definir Orçamento Mensal</h5>
+    </div>
+    <div class="card-body">
+        @if (categoriasDespesa.Count == 0)
+        {
+            <div class="alert alert-warning">Cadastre uma categoria de despesa antes de definir um orçamento.</div>
+        }
+
+        <EditForm Model="@orcamento" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Categoria de despesa <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="orcamento.IdCategoria" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var categoria in categoriasDespesa)
+                    {
+                        <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => orcamento.IdCategoria)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Mês de referência <span class="text-danger">*</span></label>
+                <InputDate @bind-Value="orcamento.MesReferencia" Type="InputDateType.Month" class="form-control" />
+                <ValidationMessage For="@(() => orcamento.MesReferencia)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Valor da meta <span class="text-danger">*</span></label>
+                <InputMoeda @bind-Value="orcamento.ValorMeta" />
+                <ValidationMessage For="@(() => orcamento.ValorMeta)" />
+                <div class="form-text">Se já existir um orçamento dessa categoria no mês, a meta é substituída.</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/orcamentos" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private DefinirOrcamentoRequest orcamento = new();
+    private List<CategoriaResponse> categorias = new();
+    private bool processando;
+
+    // E1 — orçamento só se aplica a categoria de despesa (ver OrcamentoService.DefinirAsync).
+    private List<CategoriaResponse> categoriasDespesa =>
+        categorias.Where(c => c.Ativa && c.Tipo == BolsoEmDia.Front.Models.Enum.TipoCategoria.Despesa).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            categorias = await CategoriaService.ObterTodos() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar categorias: {ex.Message}");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var definido = await OrcamentoService.Definir(orcamento);
+
+            if (definido != null)
+            {
+                NotificacaoService.ShowSuccess("Orçamento definido com sucesso!", "Orçamento Salvo");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/orcamentos");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao definir orçamento: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,196 @@
+@page "/orcamentos"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Orcamento
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Orcamento
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IOrcamentoService OrcamentoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Orçamentos — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="OrcamentoLinha"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                Items="linhasPagina"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="AplicarOrdenacaoPaginacao"
+                SelecaoHabilitada="false"
+                Titulo="Orçamentos"
+                MensagemVazio="Nenhum orçamento definido"
+                MensagemVazioDetalhe="Defina um orçamento mensal por categoria para acompanhar o progresso dos gastos."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/orcamentos/novo" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Novo Orçamento
+        </a>
+    </AcoesCabecalho>
+    <FiltrosAdicionais>
+        <select class="form-select" value="@filtroMes" @onchange="AlterarFiltroMes">
+            <option value="">Todos os meses</option>
+            @foreach (var mes in mesesDisponiveis)
+            {
+                <option value="@mes.ToString("yyyy-MM")">@mes.ToString("MM/yyyy")</option>
+            }
+        </select>
+    </FiltrosAdicionais>
+</TabelaGenerica>
+
+@code {
+    // UC09 — cada orçamento carrega o próprio progresso (gasto/percentual/estourado);
+    // a Api não devolve isso na listagem porque progresso depende do total gasto,
+    // que só faz sentido calcular por categoria/mês (ver OrcamentoService.ObterProgressoAsync).
+    private record OrcamentoLinha(
+        int IdOrcamento, int IdCategoria, string NomeCategoria, DateOnly MesReferencia,
+        decimal ValorMeta, decimal TotalGasto, decimal PercentualConsumido, bool Estourado);
+
+    private List<OrcamentoLinha> todasLinhas = new();
+    private List<OrcamentoLinha> linhasPagina = new();
+    private List<DateOnly> mesesDisponiveis = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "desc";
+    private string filtroMes = string.Empty;
+
+    private List<ColunaTabela<OrcamentoLinha>> colunas => new()
+    {
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Categoria",
+            Propriedade = nameof(OrcamentoLinha.NomeCategoria),
+            Ordenavel = true,
+            Largura = "20%"
+        },
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Mês",
+            Propriedade = nameof(OrcamentoLinha.MesReferencia),
+            Valor = l => l.MesReferencia.ToString("MM/yyyy"),
+            Ordenavel = true,
+            Largura = "12%"
+        },
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Meta",
+            Valor = l => l.ValorMeta.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "14%"
+        },
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Gasto",
+            Valor = l => l.TotalGasto.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "14%"
+        },
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Progresso",
+            Ordenavel = false,
+            Template = l =>
+                @<div class="progress" style="height: 1.25rem;" title="@($"{l.PercentualConsumido:P0}")">
+                    <div class="progress-bar @(l.Estourado ? "bg-danger" : "bg-success")"
+                         style="width: @(Math.Min((double)l.PercentualConsumido * 100, 100))%">
+                        @l.PercentualConsumido.ToString("P0")
+                    </div>
+                </div>,
+            Largura = "25%"
+        },
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = l =>
+                @<span class="badge @(l.Estourado ? "bg-danger" : "bg-success")">
+                    @(l.Estourado ? "Estourado" : "Dentro da meta")
+                </span>,
+            Largura = "15%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync() => await CarregarOrcamentos();
+
+    private async Task CarregarOrcamentos()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var orcamentos = await OrcamentoService.ObterTodos() ?? new();
+            var categorias = await CategoriaService.ObterTodos() ?? new();
+            var nomesCategorias = categorias.ToDictionary(c => c.IdCategoria, c => c.Nome);
+
+            var progressos = await Task.WhenAll(orcamentos.Select(o =>
+                OrcamentoService.ObterProgresso(o.IdCategoria, o.MesReferencia)));
+
+            todasLinhas = orcamentos.Zip(progressos, (o, p) => new OrcamentoLinha(
+                    o.IdOrcamento,
+                    o.IdCategoria,
+                    nomesCategorias.GetValueOrDefault(o.IdCategoria, "—"),
+                    o.MesReferencia,
+                    o.ValorMeta,
+                    p?.TotalGasto ?? 0,
+                    p?.PercentualConsumido ?? 0,
+                    p?.Estourado ?? false))
+                .ToList();
+
+            mesesDisponiveis = todasLinhas.Select(l => l.MesReferencia).Distinct().OrderDescending().ToList();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar orçamentos: {ex.Message}");
+            todasLinhas = new();
+        }
+        finally
+        {
+            AplicarOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private Task AplicarOrdenacaoPaginacao()
+    {
+        IEnumerable<OrcamentoLinha> query = todasLinhas;
+
+        if (!string.IsNullOrWhiteSpace(filtroMes))
+            query = query.Where(l => l.MesReferencia.ToString("yyyy-MM") == filtroMes);
+
+        query = ordenacaoPropriedade switch
+        {
+            nameof(OrcamentoLinha.MesReferencia) => ordenacaoDirecao == "asc"
+                ? query.OrderBy(l => l.MesReferencia)
+                : query.OrderByDescending(l => l.MesReferencia),
+            _ => ordenacaoDirecao == "desc"
+                ? query.OrderByDescending(l => l.NomeCategoria)
+                : query.OrderBy(l => l.NomeCategoria)
+        };
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        linhasPagina = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+        return Task.CompletedTask;
+    }
+
+    private async Task AlterarFiltroMes(ChangeEventArgs e)
+    {
+        filtroMes = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await AplicarOrdenacaoPaginacao();
+    }
+}
