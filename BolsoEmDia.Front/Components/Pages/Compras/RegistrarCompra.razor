@@ -1,0 +1,146 @@
+@page "/compras/nova"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Compra
+@using BolsoEmDia.Front.Models.Response.Cartao
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Compra
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject ICompraService CompraService
+@inject ICartaoService CartaoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Compra — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Compra no Cartão</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="@compra" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Cartão <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="compra.IdCartao" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var cartao in cartoes)
+                    {
+                        <option value="@cartao.IdCartao">@cartao.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => compra.IdCartao)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="compra.IdCategoria" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var categoria in categoriasDespesa)
+                    {
+                        <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => compra.IdCategoria)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Descrição <span class="text-danger">*</span></label>
+                <InputText @bind-Value="compra.Descricao" class="form-control" />
+                <ValidationMessage For="@(() => compra.Descricao)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Data <span class="text-danger">*</span></label>
+                <InputDate @bind-Value="compra.Data" class="form-control" />
+                <ValidationMessage For="@(() => compra.Data)" />
+            </div>
+
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label">Valor total <span class="text-danger">*</span></label>
+                    <InputMoeda @bind-Value="compra.ValorTotal" />
+                    <ValidationMessage For="@(() => compra.ValorTotal)" />
+                </div>
+                <div class="col-6 mb-3">
+                    <label class="form-label">Parcelas <span class="text-danger">*</span></label>
+                    <InputNumber @bind-Value="compra.NumeroParcelas" class="form-control" min="1" />
+                    <ValidationMessage For="@(() => compra.NumeroParcelas)" />
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/compras" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarCompraRequest compra = new();
+    private List<CartaoResponse> cartoes = new();
+    private List<CategoriaResponse> categorias = new();
+    private bool processando;
+
+    // Compra no cartão é sempre despesa — só categorias ativas do tipo Despesa fazem sentido aqui.
+    private List<CategoriaResponse> categoriasDespesa =>
+        categorias.Where(c => c.Ativa && c.Tipo == TipoCategoria.Despesa).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            cartoes = (await CartaoService.ObterTodos() ?? new()).Where(c => c.Ativo).ToList();
+            categorias = await CategoriaService.ObterTodos() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar cartões/categorias: {ex.Message}");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var registrada = await CompraService.Registrar(compra);
+
+            if (registrada != null)
+            {
+                NotificacaoService.ShowSuccess("Compra registrada com sucesso!", "Compra Registrada");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/compras");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+            // (ex.: limite disponível insuficiente — ver UC15, checado só no servidor)
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao registrar compra: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

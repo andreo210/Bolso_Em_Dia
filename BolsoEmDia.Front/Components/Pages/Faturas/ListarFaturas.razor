@@ -1,0 +1,204 @@
+@page "/faturas"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Response.Cartao
+@using BolsoEmDia.Front.Models.Response.Fatura
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Servicos.Fatura
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IFaturaService FaturaService
+@inject ICartaoService CartaoService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Faturas — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="FaturaResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="faturas"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarFaturas"
+                SelecaoHabilitada="false"
+                Titulo="Faturas"
+                PlaceholderBusca="Pesquisar por cartão..."
+                MensagemVazio="Nenhuma fatura encontrada"
+                MensagemVazioDetalhe="Faturas são geradas automaticamente conforme as compras entram no ciclo de cada cartão."
+                ColunasFiltro="6">
+    <FiltrosAdicionais>
+        <select class="form-select" value="@filtroIdCartao" @onchange="AlterarFiltroCartao">
+            <option value="">Todos os cartões</option>
+            @foreach (var cartao in cartoes)
+            {
+                <option value="@cartao.IdCartao">@cartao.Nome</option>
+            }
+        </select>
+    </FiltrosAdicionais>
+    <AcoesTemplate Context="fatura">
+        @if (fatura.Status != StatusFatura.Paga)
+        {
+            <a class="btn btn-sm btn-outline-primary" title="Pagar fatura" href="@($"/faturas/{fatura.IdFatura}/pagamento")">
+                <i class="bi bi-cash-coin"></i>
+            </a>
+        }
+    </AcoesTemplate>
+</TabelaGenerica>
+
+@code {
+    // A Api não pagina nem filtra faturas (GET /api/v1/faturas devolve a lista inteira
+    // do usuário) — busca, filtro de cartão, ordenação e paginação abaixo rodam sobre
+    // essa lista completa, então TotalItens continua honesto (não é uma página fatiada
+    // do servidor).
+    private List<FaturaResponse> todasFaturas = new();
+    private List<FaturaResponse> faturas = new();
+    private List<CartaoResponse> cartoes = new();
+    private Dictionary<int, string> nomesCartoes = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "desc";
+    private string termoBuscaGlobal = string.Empty;
+    private string filtroIdCartao = string.Empty;
+
+    private List<ColunaTabela<FaturaResponse>> colunas => new()
+    {
+        new ColunaTabela<FaturaResponse>
+        {
+            Titulo = "Cartão",
+            Ordenavel = false,
+            Valor = f => nomesCartoes.GetValueOrDefault(f.IdCartao, "—"),
+            Largura = "18%"
+        },
+        new ColunaTabela<FaturaResponse>
+        {
+            Titulo = "Mês referência",
+            Propriedade = nameof(FaturaResponse.MesReferencia),
+            Valor = f => f.MesReferencia.ToString("MM/yyyy"),
+            Ordenavel = true,
+            Largura = "15%"
+        },
+        new ColunaTabela<FaturaResponse>
+        {
+            Titulo = "Fechamento",
+            Valor = f => f.DataFechamento.ToString("dd/MM/yyyy"),
+            Ordenavel = false,
+            Largura = "15%"
+        },
+        new ColunaTabela<FaturaResponse>
+        {
+            Titulo = "Vencimento",
+            Valor = f => f.DataVencimento.ToString("dd/MM/yyyy"),
+            Ordenavel = false,
+            Largura = "15%"
+        },
+        new ColunaTabela<FaturaResponse>
+        {
+            Titulo = "Valor total",
+            Valor = f => f.ValorTotal.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "17%"
+        },
+        new ColunaTabela<FaturaResponse>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = f =>
+                @<span class="badge @ClasseBadgeStatus(f.Status)">@f.Status</span>,
+            Largura = "20%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarReferencias();
+        await CarregarFaturas();
+    }
+
+    // Cartão é uma lista pequena e já usada noutras telas: carrega uma vez só para rotular a listagem.
+    private async Task CarregarReferencias()
+    {
+        try
+        {
+            cartoes = await CartaoService.ObterTodos() ?? new();
+            nomesCartoes = cartoes.ToDictionary(c => c.IdCartao, c => c.Nome);
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar cartões: {ex.Message}");
+        }
+    }
+
+    private async Task CarregarFaturas()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await FaturaService.ObterTodos();
+            todasFaturas = resultado ?? new();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar faturas: {ex.Message}");
+            todasFaturas = new();
+        }
+        finally
+        {
+            AplicarFiltroOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarFiltroOrdenacaoPaginacao()
+    {
+        IEnumerable<FaturaResponse> query = todasFaturas;
+
+        if (!string.IsNullOrWhiteSpace(termoBuscaGlobal))
+        {
+            var termo = termoBuscaGlobal.Trim();
+            query = query.Where(f => nomesCartoes.GetValueOrDefault(f.IdCartao, string.Empty)
+                .Contains(termo, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filtroIdCartao))
+        {
+            var idCartao = int.Parse(filtroIdCartao);
+            query = query.Where(f => f.IdCartao == idCartao);
+        }
+
+        query = ordenacaoDirecao == "desc"
+            ? query.OrderByDescending(f => f.MesReferencia)
+            : query.OrderBy(f => f.MesReferencia);
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        faturas = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+
+    private async Task AlterarFiltroCartao(ChangeEventArgs e)
+    {
+        filtroIdCartao = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarFaturas();
+    }
+
+    private static string ClasseBadgeStatus(StatusFatura status) => status switch
+    {
+        StatusFatura.Aberta => "bg-primary",
+        StatusFatura.Fechada => "bg-warning text-dark",
+        StatusFatura.Paga => "bg-success",
+        _ => "bg-secondary"
+    };
+}

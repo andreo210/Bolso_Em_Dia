@@ -1,0 +1,196 @@
+@page "/compras"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Response.Cartao
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Compra
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Compra
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject ICompraService CompraService
+@inject ICartaoService CartaoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Compras no Cartão — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="CompraResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="compras"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarCompras"
+                SelecaoHabilitada="false"
+                Titulo="Compras no Cartão"
+                PlaceholderBusca="Pesquisar por descrição..."
+                MensagemVazio="Nenhuma compra registrada"
+                MensagemVazioDetalhe="Registre uma compra para gerar as parcelas na fatura do cartão."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/compras/nova" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Compra
+        </a>
+    </AcoesCabecalho>
+    <FiltrosAdicionais>
+        <select class="form-select" value="@filtroIdCartao" @onchange="AlterarFiltroCartao">
+            <option value="">Todos os cartões</option>
+            @foreach (var cartao in cartoes)
+            {
+                <option value="@cartao.IdCartao">@cartao.Nome</option>
+            }
+        </select>
+    </FiltrosAdicionais>
+</TabelaGenerica>
+
+@code {
+    // A Api não pagina nem filtra compras (GET /api/v1/compras devolve a lista inteira
+    // do usuário) — busca, ordenação, filtro de cartão e paginação abaixo rodam sobre
+    // essa lista completa, então TotalItens continua honesto (não é uma página fatiada
+    // do servidor).
+    private List<CompraResponse> todasCompras = new();
+    private List<CompraResponse> compras = new();
+    private List<CartaoResponse> cartoes = new();
+    private List<CategoriaResponse> categorias = new();
+    private Dictionary<int, string> nomesCartoes = new();
+    private Dictionary<int, string> nomesCategorias = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "desc";
+    private string termoBuscaGlobal = string.Empty;
+    private string filtroIdCartao = string.Empty;
+
+    private List<ColunaTabela<CompraResponse>> colunas => new()
+    {
+        new ColunaTabela<CompraResponse>
+        {
+            Titulo = "Data",
+            Propriedade = nameof(CompraResponse.Data),
+            Valor = c => c.Data.ToString("dd/MM/yyyy"),
+            Ordenavel = true,
+            Largura = "12%"
+        },
+        new ColunaTabela<CompraResponse>
+        {
+            Titulo = "Descrição",
+            Propriedade = nameof(CompraResponse.Descricao),
+            Ordenavel = true,
+            Largura = "22%"
+        },
+        new ColunaTabela<CompraResponse>
+        {
+            Titulo = "Cartão",
+            Ordenavel = false,
+            Valor = c => nomesCartoes.GetValueOrDefault(c.IdCartao, "—"),
+            Largura = "16%"
+        },
+        new ColunaTabela<CompraResponse>
+        {
+            Titulo = "Categoria",
+            Ordenavel = false,
+            Valor = c => nomesCategorias.GetValueOrDefault(c.IdCategoria, "—"),
+            Largura = "16%"
+        },
+        new ColunaTabela<CompraResponse>
+        {
+            Titulo = "Valor total",
+            Valor = c => c.ValorTotal.ToString("C2"),
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "16%"
+        },
+        new ColunaTabela<CompraResponse>
+        {
+            Titulo = "Parcelas",
+            Valor = c => c.NumeroParcelas == 1 ? "À vista" : $"{c.NumeroParcelas}x",
+            Ordenavel = false,
+            Alinhamento = "right",
+            Largura = "18%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarReferencias();
+        await CarregarCompras();
+    }
+
+    // Cartão e categoria são listas pequenas e já usadas noutras telas: carregam uma vez
+    // só para rotular a listagem.
+    private async Task CarregarReferencias()
+    {
+        try
+        {
+            cartoes = await CartaoService.ObterTodos() ?? new();
+            categorias = await CategoriaService.ObterTodos() ?? new();
+            nomesCartoes = cartoes.ToDictionary(c => c.IdCartao, c => c.Nome);
+            nomesCategorias = categorias.ToDictionary(c => c.IdCategoria, c => c.Nome);
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar cartões/categorias: {ex.Message}");
+        }
+    }
+
+    private async Task CarregarCompras()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await CompraService.ObterTodos();
+            todasCompras = resultado ?? new();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar compras: {ex.Message}");
+            todasCompras = new();
+        }
+        finally
+        {
+            AplicarFiltroOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarFiltroOrdenacaoPaginacao()
+    {
+        IEnumerable<CompraResponse> query = todasCompras;
+
+        if (!string.IsNullOrWhiteSpace(termoBuscaGlobal))
+            query = query.Where(c => c.Descricao.Contains(termoBuscaGlobal.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(filtroIdCartao))
+        {
+            var idCartao = int.Parse(filtroIdCartao);
+            query = query.Where(c => c.IdCartao == idCartao);
+        }
+
+        query = ordenacaoPropriedade == nameof(CompraResponse.Descricao)
+            ? (ordenacaoDirecao == "desc" ? query.OrderByDescending(c => c.Descricao) : query.OrderBy(c => c.Descricao))
+            : (ordenacaoDirecao == "desc" ? query.OrderByDescending(c => c.Data) : query.OrderBy(c => c.Data));
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        compras = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+
+    private async Task AlterarFiltroCartao(ChangeEventArgs e)
+    {
+        filtroIdCartao = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarCompras();
+    }
+}
