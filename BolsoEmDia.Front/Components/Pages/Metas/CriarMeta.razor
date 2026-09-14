@@ -1,0 +1,116 @@
+@page "/metas/nova"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Request.Meta
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Meta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IMetaEconomiaService MetaService
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Meta — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Meta de Economia</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="@meta" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                <InputText @bind-Value="meta.Nome" class="form-control" autofocus />
+                <ValidationMessage For="@(() => meta.Nome)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Valor alvo <span class="text-danger">*</span></label>
+                <InputMoeda @bind-Value="meta.ValorAlvo" />
+                <ValidationMessage For="@(() => meta.ValorAlvo)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Prazo</label>
+                <InputDate @bind-Value="meta.DataAlvo" class="form-control" />
+                <div class="form-text">Opcional — deixe em branco para uma meta sem prazo.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Conta vinculada</label>
+                <InputSelect @bind-Value="meta.IdConta" class="form-select">
+                    <option value="">Nenhuma</option>
+                    @foreach (var conta in contas)
+                    {
+                        <option value="@conta.IdConta">@conta.Nome</option>
+                    }
+                </InputSelect>
+                <div class="form-text">Opcional — só para referência, não afeta o saldo da conta.</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/metas" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarMetaEconomiaRequest meta = new();
+    private List<ContaResponse> contas = new();
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            contas = (await ContaService.ObterTodos() ?? new()).Where(c => c.Ativa).ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas: {ex.Message}");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var criada = await MetaService.Criar(meta);
+
+            if (criada != null)
+            {
+                NotificacaoService.ShowSuccess("Meta cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/metas");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar meta: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

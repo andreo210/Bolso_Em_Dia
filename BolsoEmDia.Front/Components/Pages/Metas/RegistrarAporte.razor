@@ -1,0 +1,113 @@
+@page "/metas/{Id:int}/aportes/novo"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Request.Meta
+@using BolsoEmDia.Front.Services.Servicos.Meta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IMetaEconomiaService MetaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Registrar Aporte — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Registrar Aporte</h5>
+    </div>
+    <div class="card-body">
+        @if (carregando)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (meta is not null)
+        {
+            <p class="text-muted">
+                <strong>@meta.Nome</strong> — @meta.TotalAportado.ToString("C2") de @meta.ValorAlvo.ToString("C2")
+            </p>
+
+            <EditForm Model="@aporte" OnValidSubmit="@ManipularEnvio">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Valor <span class="text-danger">*</span></label>
+                    <InputMoeda @bind-Value="aporte.Valor" />
+                    <ValidationMessage For="@(() => aporte.Valor)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Data <span class="text-danger">*</span></label>
+                    <InputDate @bind-Value="aporte.Data" class="form-control" />
+                    <ValidationMessage For="@(() => aporte.Data)" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                        }
+                    </button>
+                    <a href="/metas" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private BolsoEmDia.Front.Models.Response.Meta.MetaEconomiaResponse? meta;
+    private RegistrarAporteMetaRequest aporte = new();
+    private bool carregando = true;
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        meta = await MetaService.ObterPorId(Id);
+
+        if (meta is null)
+        {
+            NotificacaoService.ShowWarning("Meta não encontrada");
+            Navegacao.NavigateTo("/metas");
+            return;
+        }
+
+        carregando = false;
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var registrado = await MetaService.RegistrarAporte(Id, aporte);
+
+            if (registrado != null)
+            {
+                NotificacaoService.ShowSuccess("Aporte registrado com sucesso!", "Aporte Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/metas");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao registrar aporte: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}
