@@ -1,0 +1,236 @@
+@page "/transacoes"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Models.Response.Transacao
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Transacao
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject ITransacaoService TransacaoService
+@inject IContaService ContaService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Transações — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="TransacaoResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="transacoes"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarTransacoes"
+                SelecaoHabilitada="false"
+                Titulo="Transações"
+                PlaceholderBusca="Pesquisar por descrição..."
+                MensagemVazio="Nenhuma transação encontrada"
+                MensagemVazioDetalhe="Lance uma receita ou despesa para começar."
+                ColunasFiltro="4">
+    <AcoesCabecalho>
+        <a href="/transacoes/nova" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Transação
+        </a>
+    </AcoesCabecalho>
+    <FiltrosAdicionais>
+        <div class="row g-2">
+            <div class="col-auto">
+                <select class="form-select" value="@filtroIdConta" @onchange="AlterarFiltroConta">
+                    <option value="">Todas as contas</option>
+                    @foreach (var conta in contas)
+                    {
+                        <option value="@conta.IdConta">@conta.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <select class="form-select" value="@filtroIdCategoria" @onchange="AlterarFiltroCategoria">
+                    <option value="">Todas as categorias</option>
+                    @foreach (var categoria in categorias)
+                    {
+                        <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <select class="form-select" value="@filtroTipo" @onchange="AlterarFiltroTipo">
+                    <option value="">Todos os tipos</option>
+                    <option value="@((int)TipoTransacao.Receita)">Receita</option>
+                    <option value="@((int)TipoTransacao.Despesa)">Despesa</option>
+                    <option value="@((int)TipoTransacao.TransferenciaSaida)">Transferência (saída)</option>
+                    <option value="@((int)TipoTransacao.TransferenciaEntrada)">Transferência (entrada)</option>
+                </select>
+            </div>
+        </div>
+    </FiltrosAdicionais>
+</TabelaGenerica>
+
+@code {
+    private List<TransacaoResponse> transacoes = new();
+    private List<ContaResponse> contas = new();
+    private List<CategoriaResponse> categorias = new();
+    private Dictionary<int, string> nomesContas = new();
+    private Dictionary<int, string> nomesCategorias = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "desc";
+    private string termoBuscaGlobal = string.Empty;
+    private string filtroIdConta = string.Empty;
+    private string filtroIdCategoria = string.Empty;
+    private string filtroTipo = string.Empty;
+
+    private List<ColunaTabela<TransacaoResponse>> colunas => new()
+    {
+        new ColunaTabela<TransacaoResponse>
+        {
+            Titulo = "Data",
+            Propriedade = nameof(TransacaoResponse.Data),
+            Valor = t => t.Data.ToString("dd/MM/yyyy"),
+            Ordenavel = true,
+            Largura = "12%"
+        },
+        new ColunaTabela<TransacaoResponse>
+        {
+            Titulo = "Tipo",
+            Ordenavel = false,
+            Template = t =>
+                @<span class="badge @ClasseBadgeTipo(t.Tipo)">@ObterNomeTipo(t.Tipo)</span>,
+            Largura = "16%"
+        },
+        new ColunaTabela<TransacaoResponse>
+        {
+            Titulo = "Conta",
+            Ordenavel = false,
+            Valor = t => nomesContas.GetValueOrDefault(t.IdConta, "—"),
+            Largura = "18%"
+        },
+        new ColunaTabela<TransacaoResponse>
+        {
+            Titulo = "Categoria",
+            Ordenavel = false,
+            Valor = t => t.IdCategoria.HasValue ? nomesCategorias.GetValueOrDefault(t.IdCategoria.Value, "—") : "—",
+            Largura = "18%"
+        },
+        new ColunaTabela<TransacaoResponse>
+        {
+            Titulo = "Valor",
+            Propriedade = "valor",
+            Valor = t => t.Valor.ToString("C2"),
+            Ordenavel = true,
+            Alinhamento = "right",
+            Largura = "16%"
+        },
+        new ColunaTabela<TransacaoResponse>
+        {
+            Titulo = "Descrição",
+            Propriedade = "descricao",
+            Valor = t => t.Descricao ?? "—",
+            Ordenavel = true,
+            Largura = "20%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarReferencias();
+        await CarregarTransacoes();
+    }
+
+    // Conta e categoria são listas pequenas e já usadas noutras telas: carregam uma vez
+    // só para rotular a listagem — quem pagina/filtra/ordena continua sendo a Api de transações.
+    private async Task CarregarReferencias()
+    {
+        try
+        {
+            contas = await ContaService.ObterTodos() ?? new();
+            categorias = await CategoriaService.ObterTodos() ?? new();
+            nomesContas = contas.ToDictionary(c => c.IdConta, c => c.Nome);
+            nomesCategorias = categorias.ToDictionary(c => c.IdCategoria, c => c.Nome);
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas/categorias: {ex.Message}");
+        }
+    }
+
+    private async Task CarregarTransacoes()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await TransacaoService.ObterPaginado(
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina,
+                termo: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                ordenarPor: ordenacaoPropriedade,
+                direcao: ordenacaoDirecao,
+                idConta: string.IsNullOrWhiteSpace(filtroIdConta) ? null : int.Parse(filtroIdConta),
+                idCategoria: string.IsNullOrWhiteSpace(filtroIdCategoria) ? null : int.Parse(filtroIdCategoria),
+                tipo: string.IsNullOrWhiteSpace(filtroTipo) ? null : (TipoTransacao)int.Parse(filtroTipo));
+
+            transacoes = resultado?.Items ?? new();
+            totalItens = resultado?.Total ?? 0;
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar transações: {ex.Message}");
+            transacoes = new();
+            totalItens = 0;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AlterarFiltroConta(ChangeEventArgs e)
+    {
+        filtroIdConta = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarTransacoes();
+    }
+
+    private async Task AlterarFiltroCategoria(ChangeEventArgs e)
+    {
+        filtroIdCategoria = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarTransacoes();
+    }
+
+    private async Task AlterarFiltroTipo(ChangeEventArgs e)
+    {
+        filtroTipo = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarTransacoes();
+    }
+
+    private static string ObterNomeTipo(TipoTransacao tipo) => tipo switch
+    {
+        TipoTransacao.Receita => "Receita",
+        TipoTransacao.Despesa => "Despesa",
+        TipoTransacao.TransferenciaSaida => "Transferência (saída)",
+        TipoTransacao.TransferenciaEntrada => "Transferência (entrada)",
+        _ => tipo.ToString()
+    };
+
+    private static string ClasseBadgeTipo(TipoTransacao tipo) => tipo switch
+    {
+        TipoTransacao.Receita => "bg-success",
+        TipoTransacao.Despesa => "bg-danger",
+        _ => "bg-info"
+    };
+}
