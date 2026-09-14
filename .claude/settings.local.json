@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(kill 2093)",
-      "Bash(dotnet build-server *)"
+      "Bash(dotnet build-server *)",
+      "Bash(curl -s -I http://localhost:5233/categorias)",
+      "Bash(curl -s -I http://localhost:5233/categorias/nova)",
+      "Bash(kill 4146)"
     ]
   }
 }
