@@ -45,9 +45,35 @@ _Nada em andamento no momento._
 
 ## A fazer
 
-_Nenhum caso de uso pendente — os 21 UCs estão implementados._
+_Api: nenhum caso de uso pendente — os 21 UCs estão implementados. Front: ainda é o template padrão do Blazor (Home/Counter/Weather), nada de negócio foi construído — ver seção "Front" abaixo._
 
 ### Infra / qualidade (fora dos casos de uso)
 - [x] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
 - [x] Corrigir `README.md` (era uma cópia acidental de `docs/modelagem/README.md`; agora descreve o projeto)
 - [x] Remover pastas vazias soltas (`Bolso_Em_Dia/` na raiz; `BolsoEmDia.Domain/NovaPasta/` já não existia)
+
+## Front
+
+Segue a skill `arquitetura-front`. UC20 e UC21 são jobs automáticos (ator "job agendado") — sem tela.
+
+### Infraestrutura (pré-requisito para qualquer tela)
+- [x] `appsettings.json` do Front: seção `ApiConfig:BaseUrlApiLocacao`
+- [x] `Program.cs`: `AddServices(...)`, autenticação por cookie (login grava só `access_token` em `AuthenticationProperties` — a Api não emite refresh token), `FallbackPolicy` exigindo autenticação em toda rota por padrão
+- [x] `Routes.razor`: `AddCascadingAuthenticationState()` + `AuthorizeRouteView` + `RedirectToLogin`
+- [x] Tela de login (`/login`) e registro (`/registrar`) — páginas SSR estáticas (sem `@rendermode`) postando pra endpoints minimalistas `/auth/login` e `/auth/registrar` (não podem ser `/login`/`/registrar`: `MapRazorComponents` já registra esses caminhos pra todo verbo HTTP, e endpoint minimalista no mesmo caminho dá `AmbiguousMatchException`). Registro loga automaticamente após criar a conta.
+- [x] Endpoint de logout (`POST /auth/logout`, derruba o cookie)
+- [x] `MainLayout.razor`: montado `NotificationDisplay` (global) + link/form de logout na `top-row`. `ConfirmDialog` fica de fora de propósito — é `@ref` por página que confirma, não global.
+- [x] `NavMenu.razor`: removidos os links de template; fica só "Início" por enquanto (visível só autenticado) — cada área ganha item conforme a tela é construída abaixo
+- [x] Removidas `Counter.razor` e `Weather.razor`
+
+### Telas por área (mesma ordem das dependências do back)
+- [ ] Contas — UC01/02/05: listagem (`TabelaGenerica`), form de cadastro/edição, ativar/inativar, exibir saldo
+- [ ] Transações — UC03/04/10: lançar receita, lançar despesa (toast de orçamento estourado vem pronto do `ApiHttpService`), listagem
+- [ ] Transferências — UC06: form entre duas contas + listagem
+- [ ] Categorias — UC07: cadastro + listagem (alimenta o formulário de transação e de orçamento)
+- [ ] Orçamento — UC08/09: definir orçamento mensal por categoria + acompanhar progresso
+- [ ] Metas de economia — UC11/12: criar meta, registrar aporte, listagem com progresso
+- [ ] Cartões de crédito — UC13: cadastro + listagem
+- [ ] Compras no cartão — UC14/15/16: form de compra (parcelas, limite disponível do cartão)
+- [ ] Faturas — UC17: listagem por cartão + pagamento
+- [ ] Recorrências — UC18/19: criar, pausar/reativar, listagem

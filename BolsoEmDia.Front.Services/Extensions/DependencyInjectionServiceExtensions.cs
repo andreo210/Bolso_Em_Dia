@@ -1,5 +1,6 @@
 using BolsoEmDia.Front.Services.Configuration;
 using BolsoEmDia.Front.Services.Servicos;
+using BolsoEmDia.Front.Services.Servicos.Autenticacao;
 using BolsoEmDia.Front.Services.Utils.Notificacao;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,8 @@ namespace BolsoEmDia.Front.Services.Extensions
                 client.BaseAddress = new Uri(apiConfig.BaseUrlApiLocacao);
             })
             .AddHttpMessageHandler<JwtAuthorizationHandler>();
+
+            services.AddScoped<IAutenticacaoService, AutenticacaoService>();
 
             // Um registro por área — a partir daqui é o CRUD do projeto:
             // services.AddScoped<IXxxService, XxxService>();
