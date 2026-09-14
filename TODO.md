@@ -67,7 +67,7 @@ Segue a skill `arquitetura-front`. UC20 e UC21 são jobs automáticos (ator "job
 - [x] Removidas `Counter.razor` e `Weather.razor`
 
 ### Telas por área (mesma ordem das dependências do back)
-- [ ] Contas — UC01/02/05: listagem (`TabelaGenerica`), form de cadastro/edição, ativar/inativar, exibir saldo
+- [x] Contas — UC01/02/05: listagem (`TabelaGenerica`), form de cadastro/edição, ativar/inativar, exibir saldo — `ListarContas`/`CriarConta`/`EditarConta` (`/contas`, `/contas/novo`, `/contas/editar/{id}`); `GET /api/v1/contas` não pagina (devolve a lista inteira do usuário), então busca/ordenação/paginação da `TabelaGenerica` rodam em memória sobre a lista completa, não sobre uma fatia do servidor; saldo (UC05) é exibido via toast a partir da ação "Ver saldo" por linha
 - [ ] Transações — UC03/04/10: lançar receita, lançar despesa (toast de orçamento estourado vem pronto do `ApiHttpService`), listagem
 - [ ] Transferências — UC06: form entre duas contas + listagem
 - [ ] Categorias — UC07: cadastro + listagem (alimenta o formulário de transação e de orçamento)

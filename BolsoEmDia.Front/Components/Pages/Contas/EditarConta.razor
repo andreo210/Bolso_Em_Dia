@@ -1,0 +1,129 @@
+@page "/contas/editar/{Id:int}"
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Conta
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Editar Conta — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Editar Conta</h5>
+    </div>
+    <div class="card-body">
+        @if (carregando)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (conta is not null)
+        {
+            <EditForm Model="@conta" OnValidSubmit="@ManipularEnvio">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Nome <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="conta.Nome" class="form-control" autofocus />
+                    <ValidationMessage For="@(() => conta.Nome)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tipo</label>
+                    <input class="form-control" value="@ObterNomeTipo(tipoAtual)" disabled />
+                    <div class="form-text">O tipo da conta não pode ser alterado depois do cadastro.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Saldo inicial</label>
+                    <input class="form-control" value="@saldoInicialAtual.ToString("C2")" disabled />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                        }
+                    </button>
+                    <a href="/contas" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AtualizarContaRequest? conta;
+    private TipoConta tipoAtual;
+    private decimal saldoInicialAtual;
+    private bool carregando = true;
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var atual = await ContaService.ObterPorId(Id);
+
+        if (atual is null)
+        {
+            NotificacaoService.ShowWarning("Conta não encontrada");
+            Navegacao.NavigateTo("/contas");
+            return;
+        }
+
+        // Cópia campo a campo, de propósito: o Response carrega dado que a Api
+        // não aceita em escrita (tipo, saldo inicial) — o Request de editar só tem Nome.
+        conta = new AtualizarContaRequest { Nome = atual.Nome };
+        tipoAtual = atual.Tipo;
+        saldoInicialAtual = atual.SaldoInicial;
+
+        carregando = false;
+    }
+
+    private static string ObterNomeTipo(TipoConta tipo) => tipo switch
+    {
+        TipoConta.Corrente => "Corrente",
+        TipoConta.Poupanca => "Poupança",
+        TipoConta.Carteira => "Carteira",
+        TipoConta.Investimento => "Investimento",
+        _ => tipo.ToString()
+    };
+
+    private async Task ManipularEnvio()
+    {
+        if (conta is null) return;
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            if (await ContaService.Atualizar(Id, conta))
+            {
+                NotificacaoService.ShowSuccess("Conta atualizada com sucesso!", "Alteração Salva");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/contas");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao atualizar conta: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}
