@@ -1,0 +1,168 @@
+@page "/transferencias"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Models.Response.Transferencia
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Transferencia
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject ITransferenciaService TransferenciaService
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@rendermode InteractiveServer
+
+<PageTitle>Transferências — BolsoEmDia</PageTitle>
+
+<TabelaGenerica TItem="TransferenciaResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                @bind-TermoBusca="termoBuscaGlobal"
+                Items="transferencias"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarTransferencias"
+                SelecaoHabilitada="false"
+                Titulo="Transferências"
+                PlaceholderBusca="Pesquisar por descrição..."
+                MensagemVazio="Nenhuma transferência encontrada"
+                MensagemVazioDetalhe="Transfira entre suas contas para começar."
+                ColunasFiltro="4">
+    <AcoesCabecalho>
+        <a href="/transferencias/nova" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Transferência
+        </a>
+    </AcoesCabecalho>
+    <FiltrosAdicionais>
+        <div class="row g-2">
+            <div class="col-auto">
+                <select class="form-select" value="@filtroIdConta" @onchange="AlterarFiltroConta">
+                    <option value="">Todas as contas</option>
+                    @foreach (var conta in contas)
+                    {
+                        <option value="@conta.IdConta">@conta.Nome</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </FiltrosAdicionais>
+</TabelaGenerica>
+
+@code {
+    private List<TransferenciaResponse> transferencias = new();
+    private List<ContaResponse> contas = new();
+    private Dictionary<int, string> nomesContas = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "desc";
+    private string termoBuscaGlobal = string.Empty;
+    private string filtroIdConta = string.Empty;
+
+    private List<ColunaTabela<TransferenciaResponse>> colunas => new()
+    {
+        new ColunaTabela<TransferenciaResponse>
+        {
+            Titulo = "Data",
+            Propriedade = nameof(TransferenciaResponse.Data),
+            Valor = t => t.Data.ToString("dd/MM/yyyy"),
+            Ordenavel = true,
+            Largura = "16%"
+        },
+        new ColunaTabela<TransferenciaResponse>
+        {
+            Titulo = "Origem",
+            Ordenavel = false,
+            Valor = t => nomesContas.GetValueOrDefault(t.IdContaOrigem, "—"),
+            Largura = "22%"
+        },
+        new ColunaTabela<TransferenciaResponse>
+        {
+            Titulo = "Destino",
+            Ordenavel = false,
+            Valor = t => nomesContas.GetValueOrDefault(t.IdContaDestino, "—"),
+            Largura = "22%"
+        },
+        new ColunaTabela<TransferenciaResponse>
+        {
+            Titulo = "Valor",
+            Propriedade = "valor",
+            Valor = t => t.Valor.ToString("C2"),
+            Ordenavel = true,
+            Alinhamento = "right",
+            Largura = "16%"
+        },
+        new ColunaTabela<TransferenciaResponse>
+        {
+            Titulo = "Descrição",
+            Propriedade = "descricao",
+            Valor = t => t.Descricao ?? "—",
+            Ordenavel = true,
+            Largura = "24%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarReferencias();
+        await CarregarTransferencias();
+    }
+
+    // Conta é lista pequena e já usada noutras telas: carrega uma vez só para rotular
+    // a listagem — quem pagina/filtra/ordena continua sendo a Api de transferências.
+    private async Task CarregarReferencias()
+    {
+        try
+        {
+            contas = await ContaService.ObterTodos() ?? new();
+            nomesContas = contas.ToDictionary(c => c.IdConta, c => c.Nome);
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas: {ex.Message}");
+        }
+    }
+
+    private async Task CarregarTransferencias()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await TransferenciaService.ObterPaginado(
+                pagina: paginaAtual,
+                itensPorPagina: itensPorPagina,
+                termo: string.IsNullOrWhiteSpace(termoBuscaGlobal) ? null : termoBuscaGlobal.Trim(),
+                ordenarPor: ordenacaoPropriedade,
+                direcao: ordenacaoDirecao,
+                idConta: string.IsNullOrWhiteSpace(filtroIdConta) ? null : int.Parse(filtroIdConta));
+
+            transferencias = resultado?.Items ?? new();
+            totalItens = resultado?.Total ?? 0;
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar transferências: {ex.Message}");
+            transferencias = new();
+            totalItens = 0;
+        }
+        finally
+        {
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AlterarFiltroConta(ChangeEventArgs e)
+    {
+        filtroIdConta = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarTransferencias();
+    }
+}

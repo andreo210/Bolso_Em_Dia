@@ -68,8 +68,8 @@ Segue a skill `arquitetura-front`. UC20 e UC21 são jobs automáticos (ator "job
 
 ### Telas por área (mesma ordem das dependências do back)
 - [x] Contas — UC01/02/05: listagem (`TabelaGenerica`), form de cadastro/edição, ativar/inativar, exibir saldo — `ListarContas`/`CriarConta`/`EditarConta` (`/contas`, `/contas/novo`, `/contas/editar/{id}`); `GET /api/v1/contas` não pagina (devolve a lista inteira do usuário), então busca/ordenação/paginação da `TabelaGenerica` rodam em memória sobre a lista completa, não sobre uma fatia do servidor; saldo (UC05) é exibido via toast a partir da ação "Ver saldo" por linha
-- [ ] Transações — UC03/04/10: lançar receita, lançar despesa (toast de orçamento estourado vem pronto do `ApiHttpService`), listagem
-- [ ] Transferências — UC06: form entre duas contas + listagem
+- [x] Transações — UC03/04/10: lançar receita, lançar despesa (toast de orçamento estourado vem pronto do `ApiHttpService`), listagem — `ListarTransacoes`/`LancarTransacao` (`/transacoes`, `/transacoes/nova`)
+- [x] Transferências — UC06: form entre duas contas + listagem — `ListarTransferencias`/`NovaTransferencia` (`/transferencias`, `/transferencias/nova`); a Api só tinha `POST /api/v1/transferencias` (sem UC próprio de listagem), então a listagem paginada foi adicionada em `TransferenciaService.ObterPaginadoAsync`/`TransferenciaController.ObterPaginado` seguindo o mesmo padrão de `TransacaoService`, antes de montar a tela
 - [ ] Categorias — UC07: cadastro + listagem (alimenta o formulário de transação e de orçamento)
 - [ ] Orçamento — UC08/09: definir orçamento mensal por categoria + acompanhar progresso
 - [ ] Metas de economia — UC11/12: criar meta, registrar aporte, listagem com progresso

@@ -4,6 +4,7 @@ using BolsoEmDia.Front.Services.Servicos.Autenticacao;
 using BolsoEmDia.Front.Services.Servicos.Categoria;
 using BolsoEmDia.Front.Services.Servicos.Conta;
 using BolsoEmDia.Front.Services.Servicos.Transacao;
+using BolsoEmDia.Front.Services.Servicos.Transferencia;
 using BolsoEmDia.Front.Services.Utils.Notificacao;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,7 @@ namespace BolsoEmDia.Front.Services.Extensions
             services.AddScoped<IContaService, ContaService>();
             services.AddScoped<ITransacaoService, TransacaoService>();
             services.AddScoped<ICategoriaService, CategoriaService>();
+            services.AddScoped<ITransferenciaService, TransferenciaService>();
 
             return services;
         }

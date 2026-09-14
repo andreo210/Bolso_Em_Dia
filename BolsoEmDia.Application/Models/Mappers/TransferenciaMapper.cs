@@ -14,5 +14,8 @@ namespace BolsoEmDia.Application.Models.Mappers
             Valor = entidade.Valor,
             Descricao = entidade.Descricao
         };
+
+        public static List<TransferenciaDto> ToDtoList(this IEnumerable<Transferencia> entidades)
+            => entidades is null ? new() : entidades.Select(ToDto).ToList();
     }
 }

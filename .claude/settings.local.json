@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kill 2093)",
+      "Bash(dotnet build-server *)"
+    ]
+  }
+}
