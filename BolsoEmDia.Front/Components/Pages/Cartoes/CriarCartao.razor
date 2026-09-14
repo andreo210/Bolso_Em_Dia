@@ -1,0 +1,124 @@
+@page "/cartoes/novo"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Request.Cartao
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject ICartaoService CartaoService
+@inject IContaService ContaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Novo Cartão — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Novo Cartão de Crédito</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="@cartao" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Nome <span class="text-danger">*</span></label>
+                <InputText @bind-Value="cartao.Nome" class="form-control" autofocus />
+                <ValidationMessage For="@(() => cartao.Nome)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Limite total <span class="text-danger">*</span></label>
+                <InputMoeda @bind-Value="cartao.LimiteTotal" />
+                <ValidationMessage For="@(() => cartao.LimiteTotal)" />
+            </div>
+
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label">Dia de fechamento <span class="text-danger">*</span></label>
+                    <InputNumber @bind-Value="cartao.DiaFechamento" class="form-control" min="1" max="31" />
+                    <ValidationMessage For="@(() => cartao.DiaFechamento)" />
+                </div>
+                <div class="col-6 mb-3">
+                    <label class="form-label">Dia de vencimento <span class="text-danger">*</span></label>
+                    <InputNumber @bind-Value="cartao.DiaVencimento" class="form-control" min="1" max="31" />
+                    <ValidationMessage For="@(() => cartao.DiaVencimento)" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Conta de pagamento <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="cartao.IdContaPagamento" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var conta in contas)
+                    {
+                        <option value="@conta.IdConta">@conta.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => cartao.IdContaPagamento)" />
+                <div class="form-text">Conta usada para pagar a fatura deste cartão.</div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/cartoes" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarCartaoRequest cartao = new();
+    private List<ContaResponse> contas = new();
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            contas = (await ContaService.ObterTodos() ?? new()).Where(c => c.Ativa).ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas: {ex.Message}");
+        }
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var criado = await CartaoService.Inserir(cartao);
+
+            if (criado != null)
+            {
+                NotificacaoService.ShowSuccess("Cartão cadastrado com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/cartoes");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar cartão: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -66,6 +66,10 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-piggy-bank' viewBox='0 0 16 16'%3E%3Cpath d='M5 6.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0zm5.5-.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1z'/%3E%3Cpath d='M1.5 6.75a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zM4.5 3a1 1 0 0 0-1 1v1.116A4.216 4.216 0 0 0 2.667 6H1.5A1.5 1.5 0 0 0 0 7.5v.5a1.5 1.5 0 0 0 1.5 1.5H2v1a1 1 0 0 0 1 1h1v1a.5.5 0 0 0 1 0v-1h2v1a.5.5 0 0 0 1 0v-1.09c.626-.076 1.213-.293 1.72-.62l.844.845a.5.5 0 1 0 .707-.707l-.822-.822c.322-.4.567-.83.716-1.294H12a.5.5 0 0 0 .5-.5V7a.5.5 0 0 0-.276-.447L11 6v-.5A2.5 2.5 0 0 0 8.5 3h-4z'/%3E%3C/svg%3E");
 }
 
+.bi-credit-card-nav-menu {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-credit-card' viewBox='0 0 16 16'%3E%3Cpath d='M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1H2zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7z'/%3E%3C/svg%3E");
+}
+
 .bi-list-nested-nav-menu {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-list-nested' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M4.5 11.5A.5.5 0 0 1 5 11h10a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 3 7h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm-2-4A.5.5 0 0 1 1 3h10a.5.5 0 0 1 0 1H1a.5.5 0 0 1-.5-.5z'/%3E%3C/svg%3E");
 }
