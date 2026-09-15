@@ -1,8 +1,12 @@
 @page "/"
+@using System.Globalization
 @using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Models.Response.Dashboard
 @using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Dashboard
 @using BolsoEmDia.Front.Services.Utils.Notificacao
 @inject IContaService ContaService
+@inject IDashboardService DashboardService
 @rendermode InteractiveServer
 
 <PageTitle>BolsoEmDia</PageTitle>
@@ -91,13 +95,105 @@
                 </div>
             </div>
         </div>
+
+        @if (!carregando && !erro && dashboard is not null)
+        {
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <p class="resumo-mes-rotulo mb-2">Receitas — @dashboard.MesReferencia.ToString("MM/yyyy")</p>
+                            <p class="resumo-mes-valor mb-0 text-success">@dashboard.TotalReceitasMes.ToString("C2")</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <p class="resumo-mes-rotulo mb-2">Despesas — @dashboard.MesReferencia.ToString("MM/yyyy")</p>
+                            <p class="resumo-mes-valor mb-0 text-danger">@dashboard.TotalDespesasMes.ToString("C2")</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <p class="resumo-mes-rotulo mb-2">Saldo do mês</p>
+                            <p class="resumo-mes-valor mb-0 @(dashboard.SaldoMes < 0 ? "text-danger" : "")">@dashboard.SaldoMes.ToString("C2")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-lg-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="mb-3">Gastos por categoria — @dashboard.MesReferencia.ToString("MM/yyyy")</h6>
+                            @if (dashboard.GastosPorCategoria.Count == 0)
+                            {
+                                <p class="text-muted mb-0">Nenhuma despesa registrada em @dashboard.MesReferencia.ToString("MM/yyyy").</p>
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center gap-4 flex-wrap">
+                                    <div class="grafico-donut" style="@EstiloDonut()"></div>
+                                    <ul class="list-unstyled mb-0 flex-grow-1">
+                                        @for (var i = 0; i < dashboard.GastosPorCategoria.Count; i++)
+                                        {
+                                            var fatia = dashboard.GastosPorCategoria[i];
+                                            <li class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="grafico-legenda-cor" style="background: @CorFatia(i);"></span>
+                                                <span class="flex-grow-1">@fatia.NomeCategoria</span>
+                                                <span class="text-muted small">@fatia.Total.ToString("C2") (@fatia.Percentual.ToString("P0"))</span>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="mb-3">Evolução mensal</h6>
+                            <div class="d-flex align-items-end gap-3">
+                                @foreach (var mes in dashboard.EvolucaoMensal)
+                                {
+                                    <div class="d-flex flex-column align-items-center" style="width: 3rem;">
+                                        <div class="d-flex align-items-end gap-1" style="height: 120px;">
+                                            <div class="grafico-evolucao-barra bg-success"
+                                                 style="height: @(AlturaBarra(mes.TotalReceitas))px"
+                                                 title="Receitas: @mes.TotalReceitas.ToString("C2")"></div>
+                                            <div class="grafico-evolucao-barra bg-danger"
+                                                 style="height: @(AlturaBarra(mes.TotalDespesas))px"
+                                                 title="Despesas: @mes.TotalDespesas.ToString("C2")"></div>
+                                        </div>
+                                        <span class="grafico-evolucao-rotulo">@mes.Mes.ToString("MM/yy")</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </Authorized>
 </AuthorizeView>
 
 @code {
+    // Paleta cicla pelas variáveis de cor já usadas no resto do app (ver app.css) — sem introduzir cor nova.
+    private static readonly string[] PaletaCores =
+    {
+        "var(--cor-primaria)", "var(--cor-acento)", "var(--cor-sucesso)",
+        "var(--cor-info)", "var(--cor-perigo)", "var(--cor-primaria-suave)"
+    };
+
     private List<ContaResponse> contasAtivas = new();
     private decimal saldoTotal;
     private int qtdContasAtivas;
+    private DashboardResponse? dashboard;
     private bool carregando = true;
     private bool erro;
 
@@ -105,12 +201,16 @@
     {
         try
         {
+            var dashboardTask = DashboardService.Obter();
+
             var contas = await ContaService.ObterTodos();
             contasAtivas = contas?.Where(c => c.Ativa).ToList() ?? new();
             qtdContasAtivas = contasAtivas.Count;
 
             var saldos = await Task.WhenAll(contasAtivas.Select(c => ContaService.ObterSaldo(c.IdConta)));
             saldoTotal = saldos.Sum(s => s?.Saldo ?? 0);
+
+            dashboard = await dashboardTask;
         }
         catch (Exception)   // só falha de transporte
         {
@@ -120,5 +220,36 @@
         {
             carregando = false;
         }
+    }
+
+    private string CorFatia(int indice) => PaletaCores[indice % PaletaCores.Length];
+
+    // Fatias em ordem decrescente de percentual — cumulativo cresce até 100% (ver DashboardService.ObterGastosPorCategoriaAsync).
+    private string EstiloDonut()
+    {
+        var partes = new List<string>();
+        double acumulado = 0;
+
+        for (var i = 0; i < dashboard!.GastosPorCategoria.Count; i++)
+        {
+            var cor = CorFatia(i);
+            var inicio = acumulado;
+            acumulado += (double)dashboard.GastosPorCategoria[i].Percentual * 100;
+            partes.Add($"{cor} {inicio.ToString("0.##", CultureInfo.InvariantCulture)}% {acumulado.ToString("0.##", CultureInfo.InvariantCulture)}%");
+        }
+
+        return $"background: conic-gradient({string.Join(", ", partes)});";
+    }
+
+    // Escala as barras pelo maior valor entre todos os meses exibidos, senão o mês com mais gasto sempre bateria no teto.
+    private double AlturaBarra(decimal valor)
+    {
+        var maximo = dashboard!.EvolucaoMensal
+            .SelectMany(m => new[] { m.TotalReceitas, m.TotalDespesas })
+            .DefaultIfEmpty(0)
+            .Max();
+
+        if (maximo <= 0) return 0;
+        return Math.Round((double)(valor / maximo) * 120, 1);
     }
 }

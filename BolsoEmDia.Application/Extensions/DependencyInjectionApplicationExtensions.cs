@@ -4,6 +4,7 @@ using BolsoEmDia.Application.Services.CartaoServices;
 using BolsoEmDia.Application.Services.CategoriaServices;
 using BolsoEmDia.Application.Services.CompraServices;
 using BolsoEmDia.Application.Services.ContaServices;
+using BolsoEmDia.Application.Services.DashboardServices;
 using BolsoEmDia.Application.Services.FaturaServices;
 using BolsoEmDia.Application.Services.MetaEconomiaServices;
 using BolsoEmDia.Application.Services.OrcamentoServices;
@@ -32,6 +33,7 @@ namespace BolsoEmDia.Application.Extensions
             services.AddScoped<IFechamentoFaturaJobService, FechamentoFaturaJobService>();
             services.AddScoped<IRecorrenciaService, RecorrenciaService>();
             services.AddScoped<IRecorrenciaJobService, RecorrenciaJobService>();
+            services.AddScoped<IDashboardService, DashboardService>();
             return services;
         }
     }

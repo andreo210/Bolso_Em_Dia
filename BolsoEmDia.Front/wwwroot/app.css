@@ -408,6 +408,48 @@ h1:focus {
     color: var(--cor-texto-suave);
 }
 
+.resumo-mes-rotulo {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cor-texto-suave);
+}
+
+.resumo-mes-valor {
+    font-family: var(--fonte-dados);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--cor-primaria-forte);
+}
+
+.grafico-donut {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    flex: none;
+}
+
+.grafico-legenda-cor {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    flex: none;
+}
+
+.grafico-evolucao-barra {
+    width: 0.9rem;
+    border-radius: 0.2rem 0.2rem 0 0;
+}
+
+.grafico-evolucao-rotulo {
+    font-size: 0.72rem;
+    color: var(--cor-texto-suave);
+    margin-top: 0.4rem;
+}
+
 /* =========================================================================
    Modal (ConfirmDialog)
    ========================================================================= */

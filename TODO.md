@@ -38,6 +38,7 @@ Status das tarefas do projeto. Casos de uso (UC) referenciam `docs/modelagem/cas
 - [x] UC19 — Pausar / cancelar recorrência — implementado junto de UC18 (`PATCH /api/v1/recorrencias/{id}/pausar`, `PATCH /api/v1/recorrencias/{id}/reativar`; "cancelar" mapeia para `Pausar()`, ver zona cinzenta em especificacao-casos-de-uso.md)
 - [x] UC21 — Gerar ocorrência de recorrência — `RecorrenciaJob` (hosted service em `BolsoEmDia.Api/Jobs`) + `RecorrenciaJobService` (`BolsoEmDia.Application`); roda diariamente à meia-noite, gera `Transacao`/`Compra` a partir de cada `Recorrencia` ativa. Não reaproveita `ITransacaoService`/`ICompraService` (dependem de `ICurrentUser`/`HttpContext`, inexistente no job) — replica a mesma checagem de saldo/limite localmente, mesmo padrão de `FaturaService` para UC17→UC04. Bloqueio de saldo/limite só loga e segue o lote (A1); falha de infra é capturada no job para não derrubar o host.
 - [x] UC20 — Fechar fatura do ciclo — `FechamentoFaturaJob` (hosted service em `BolsoEmDia.Api/Jobs`) + `FechamentoFaturaJobService` (`BolsoEmDia.Application`); roda diariamente à meia-noite, mesmo padrão de `RecorrenciaJob`. Para cada `Cartao` ativo com `DiaFechamento == hoje`, fecha a fatura `Aberta` (se existir) e garante a fatura do próximo ciclo via `Cartao.AbrirFatura`. Sem fatura aberta ainda (cartão sem nenhuma compra) só garante o próximo ciclo, sem erro — é o outro caminho de abertura citado em UC13. Sem caminho de erro de negócio (não usa `INotificadorService`); falha de infra é capturada no job.
+- [x] UC22 — Ver dashboard — `DashboardService`/`DashboardController` (`GET /api/v1/dashboard`); consulta pura sobre `Transacao` (sem entidade própria): resumo do mês (receitas/despesas/saldo), gastos por categoria do mês agrupados por `IdCategoria` como lançado, e evolução mensal dos últimos 6 meses. Soma só `Tipo == Receita`/`Despesa` — exclui `TransferenciaEntrada`/`TransferenciaSaida`, que são movimento entre contas do próprio usuário, não renda/gasto real. Front: ampliou a Home (`/`) em vez de criar rota própria — resumo do mês, donut de gastos por categoria (CSS `conic-gradient`) e barras de evolução mensal (`<div>` com `height` proporcional), sem biblioteca de gráfico nova.
 
 ## Em andamento
 
@@ -45,7 +46,17 @@ _Nada em andamento no momento._
 
 ## A fazer
 
-_Nada pendente — os 21 UCs estão implementados na Api e todas as telas correspondentes no Front (ver seção "Front" abaixo)._
+Os 22 UCs atuais estão implementados na Api e no Front (ver seção "Front" abaixo). Os itens abaixo vieram de uma comparação com o app Mobills (2026-09-15) — ainda não têm UC especificado, então precisam passar por `documentacao-modelagem` antes de virar código.
+
+### Gaps identificados vs. Mobills
+- [ ] Tags/etiquetas em transações, soltas e livres, além da categoria (Mobills permite marcar uma transação com várias tags)
+- [ ] Anexar comprovante/foto a uma transação
+- [ ] Notificações proativas — hoje só existe o toast reativo de orçamento estourado (UC10), disparado no momento do lançamento; falta lembrete de fatura a vencer, meta perto do prazo etc.
+- [ ] Exportar dados (CSV/PDF) de transações/relatórios
+- [ ] Orçamento anual / planejamento de longo prazo (hoje só orçamento mensal por categoria — UC08)
+- [ ] Multi-moeda
+- [ ] Open Finance / sincronização bancária automática — maior lacuna vs. apps comerciais, mas desproporcional para um projeto pessoal; avaliar se entra no escopo antes de especificar
+- [ ] `CategoriaController`/`CartaoController` só expõem criar/listar (sem editar/inativar) — Front já documenta essa limitação nas telas de Categorias e Cartões; falta decidir se vale a pena fechar o CRUD
 
 ### Infra / qualidade (fora dos casos de uso)
 - [x] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
@@ -77,3 +88,4 @@ Segue a skill `arquitetura-front`. UC20 e UC21 são jobs automáticos (ator "job
 - [x] Compras no cartão — UC14/15/16: form de compra (parcelas) + listagem — `ListarCompras`/`RegistrarCompra` (`/compras`, `/compras/nova`); Api não pagina (igual Cartões/Categorias); limite disponível (UC15) não é checado no front — a Api recusa com `ProblemDetails` e o toast já sai pronto do `ApiHttpService`, então não faz sentido duplicar a soma de parcelas aqui; form só oferece categorias do tipo Despesa (compra no cartão nunca é receita)
 - [x] Faturas — UC17: listagem por cartão + pagamento — `ListarFaturas`/`PagarFatura` (`/faturas`, `/faturas/{id}/pagamento`); Api não pagina (igual Cartões/Compras); ação "Pagar" só aparece para fatura != Paga (`Aberta`/`Fechada`, ver diagrama-estados.md sobre pagamento antecipado); form só pede `IdCategoria` — conta de pagamento e valor vêm do cartão/fatura no servidor, saldo insuficiente (UC05) é checado só na Api
 - [x] Recorrências — UC18/19: criar, pausar/reativar, listagem — `ListarRecorrencias`/`CriarRecorrencia` (`/recorrencias`, `/recorrencias/nova`); Api não pagina (igual Cartões/Compras); recorrência é ligada a exatamente uma conta OU um cartão (nunca as duas, ver `Recorrencia.Criar`), então o form troca entre os dois blocos por um radio "Destino" — conta pede também o `TipoTransacao` (Receita/Despesa), cartão é sempre compra (mesma regra de categoria só-Despesa do form de Compras); dia de geração muda de widget conforme a frequência (dropdown de dia da semana quando Semanal, número 1-31 quando Mensal/Anual, mesma faixa validada em `Recorrencia.ValidarDiaGeracao`); listagem resolve nome de conta/cartão/categoria via dicionário carregado à parte (mesmo padrão de Compras) e a ação "Pausar" pede confirmação (mesmo padrão de Inativar Conta), "Reativar" não pede
+- [x] Dashboard — UC22: resumo do mês + gastos por categoria + evolução mensal, ampliando a Home (`/`) existente — sem rota nova; `IDashboardService` carrega em paralelo com o saldo total já existente (`Task.WhenAll` implícito por não aguardar a task antes das contas); donut de gastos por categoria via `conic-gradient` e barras de evolução mensal via `<div>` com `height` proporcional, sem biblioteca de gráfico nova (projeto não tinha JS interop antes)

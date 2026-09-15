@@ -411,6 +411,24 @@ Diferente de UC04, receita **nunca** passa por verificação de saldo — só so
 
 ---
 
+## UC22 — Ver dashboard
+
+**Ator:** Usuário
+
+**Pré-condições:** nenhuma além da autenticação — funciona mesmo sem nenhuma `Transacao` lançada (mostra tudo zerado).
+
+**Fluxo principal:**
+1. Usuário abre a Home.
+2. Sistema soma receitas e despesas do usuário (excluindo `TransferenciaEntrada`/`TransferenciaSaida` — são movimento entre contas do próprio usuário, não renda/gasto real) do mês corrente e dos 5 meses anteriores, agrupadas por mês.
+3. Sistema soma as despesas do mês corrente, agrupadas pela categoria como a transação foi lançada (sem enrolar subcategoria no pai — diferente da regra de UC09/UC10, que é específica de orçamento).
+4. Sistema devolve resumo do mês (receitas, despesas, saldo), gastos por categoria do mês e evolução mensal dos últimos 6 meses.
+
+**Fluxos alternativos / exceção:** nenhum — é uma consulta pura; mês ou categoria sem lançamento aparece com valor zero, não como erro.
+
+**Pós-condições:** nenhuma alteração de estado — consulta pura sobre `Transacao`, sem entidade própria.
+
+---
+
 ## Fora do escopo
 
 Os mesmos itens já listados no `README.md` deste diretório (múltiplas moedas, conta compartilhada entre mais de um usuário, integração com extrato bancário, teto configurável de cheque especial, taxa de transferência, estorno parcial de compra parcelada já paga parcialmente) não têm caso de uso especificado aqui — são extensões a confirmar antes de modelar, não funcionalidades já decididas.
