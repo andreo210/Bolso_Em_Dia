@@ -1,5 +1,6 @@
 @page "/categorias"
 @using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Components.Notificacao
 @using BolsoEmDia.Front.Models.Enum
 @using BolsoEmDia.Front.Models.Response.Categoria
 @using BolsoEmDia.Front.Models.Tabelas
@@ -7,9 +8,12 @@
 @using BolsoEmDia.Front.Services.Utils.Notificacao
 @inject ICategoriaService CategoriaService
 @inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
 @rendermode InteractiveServer
 
 <PageTitle>Categorias — BolsoEmDia</PageTitle>
+
+<ConfirmDialog @ref="confirmDialog" />
 
 <TabelaGenerica TItem="CategoriaResponse"
                 @bind-PaginaAtual="paginaAtual"
@@ -39,10 +43,36 @@
             <option value="@((int)TipoCategoria.Receita)">Receita</option>
             <option value="@((int)TipoCategoria.Despesa)">Despesa</option>
         </select>
+        <select class="form-select" value="@filtroSituacao" @onchange="AlterarFiltroSituacao">
+            <option value="">Todas as situações</option>
+            <option value="true">Somente ativas</option>
+            <option value="false">Somente inativas</option>
+        </select>
     </FiltrosAdicionais>
+    <AcoesTemplate Context="categoria">
+        <div class="btn-group" role="group">
+            <a class="btn btn-sm btn-outline-primary" title="Editar" href="@($"/categorias/editar/{categoria.IdCategoria}")">
+                <i class="bi bi-pencil"></i>
+            </a>
+            @if (categoria.Ativa)
+            {
+                <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => InativarCategoria(categoria)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-sm btn-outline-success" title="Reativar" @onclick="() => AtivarCategoria(categoria)">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            }
+        </div>
+    </AcoesTemplate>
 </TabelaGenerica>
 
 @code {
+    private ConfirmDialog? confirmDialog;
+
     // A Api não pagina nem filtra categorias (GET /api/v1/categorias devolve a lista
     // inteira do usuário) — busca, ordenação e paginação abaixo rodam sobre essa lista
     // completa, então TotalItens continua honesto (não é uma página fatiada do servidor).
@@ -58,6 +88,7 @@
     private string ordenacaoDirecao = "asc";
     private string termoBuscaGlobal = string.Empty;
     private string filtroTipo = string.Empty;
+    private string filtroSituacao = string.Empty;
 
     private List<ColunaTabela<CategoriaResponse>> colunas => new()
     {
@@ -66,6 +97,10 @@
             Titulo = "Nome",
             Propriedade = nameof(CategoriaResponse.Nome),
             Ordenavel = true,
+            Template = c =>
+                @<span class="d-inline-flex align-items-center gap-2">
+                    <i class="bi @c.Icone" style="color:@c.Cor;"></i> @c.Nome
+                </span>,
             Largura = "30%"
         },
         new ColunaTabela<CategoriaResponse>
@@ -136,6 +171,12 @@
             query = query.Where(c => c.Tipo == tipo);
         }
 
+        if (!string.IsNullOrWhiteSpace(filtroSituacao))
+        {
+            var ativa = bool.Parse(filtroSituacao);
+            query = query.Where(c => c.Ativa == ativa);
+        }
+
         query = ordenacaoDirecao == "desc"
             ? query.OrderByDescending(c => c.Nome)
             : query.OrderBy(c => c.Nome);
@@ -150,5 +191,40 @@
         filtroTipo = e.Value?.ToString() ?? string.Empty;
         paginaAtual = 1;
         await CarregarCategorias();
+    }
+
+    private async Task AlterarFiltroSituacao(ChangeEventArgs e)
+    {
+        filtroSituacao = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await CarregarCategorias();
+    }
+
+    private async Task InativarCategoria(CategoriaResponse categoria)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente excluir a categoria \"{categoria.Nome}\"? O histórico de transações já lançadas é preservado.",
+            "Excluir Categoria");
+
+        if (!confirmado) return;
+
+        if (await CategoriaService.Inativar(categoria.IdCategoria))
+        {
+            NotificacaoService.ShowSuccess("Categoria excluída com sucesso!");
+
+            if (categorias.Count == 1 && paginaAtual > 1)
+                paginaAtual--;
+
+            await CarregarCategorias();
+        }
+    }
+
+    private async Task AtivarCategoria(CategoriaResponse categoria)
+    {
+        if (await CategoriaService.Ativar(categoria.IdCategoria))
+        {
+            NotificacaoService.ShowSuccess("Categoria reativada com sucesso!");
+            await CarregarCategorias();
+        }
     }
 }

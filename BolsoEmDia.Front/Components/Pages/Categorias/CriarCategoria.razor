@@ -47,6 +47,31 @@
                 <div class="form-text">Só categorias principais do mesmo tipo podem ser categoria-pai.</div>
             </div>
 
+            <div class="row">
+                <div class="col-8 mb-3">
+                    <label class="form-label">Ícone</label>
+                    <InputSelect @bind-Value="categoria.Icone" class="form-select">
+                        @foreach (var opcao in IconesCategoria.Opcoes)
+                        {
+                            <option value="@opcao.Classe">@opcao.Rotulo</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => categoria.Icone)" />
+                </div>
+                <div class="col-4 mb-3">
+                    <label class="form-label">Cor</label>
+                    <input type="color" class="form-control form-control-color w-100" value="@categoria.Cor" @onchange="@(e => categoria.Cor = e.Value?.ToString() ?? categoria.Cor)" />
+                    <ValidationMessage For="@(() => categoria.Cor)" />
+                </div>
+            </div>
+
+            <div class="mb-3 d-flex align-items-center gap-2">
+                <span class="form-text mb-0">Pré-visualização:</span>
+                <span class="badge d-inline-flex align-items-center gap-1" style="background-color:@categoria.Cor;">
+                    <i class="bi @categoria.Icone"></i> @(string.IsNullOrWhiteSpace(categoria.Nome) ? "Categoria" : categoria.Nome)
+                </span>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary" disabled="@processando">
                     @if (processando)

@@ -1,0 +1,124 @@
+@page "/orcamentos/editar/{Id:int}"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Request.Orcamento
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Orcamento
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IOrcamentoService OrcamentoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Editar Orçamento — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Editar Orçamento</h5>
+    </div>
+    <div class="card-body">
+        @if (carregando)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (orcamento is not null)
+        {
+            <EditForm Model="@orcamento" OnValidSubmit="@ManipularEnvio">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Categoria</label>
+                    <input class="form-control" value="@nomeCategoriaAtual" disabled />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Mês de referência</label>
+                    <input class="form-control" value="@mesReferenciaAtual.ToString("MM/yyyy")" disabled />
+                    <div class="form-text">Categoria e mês não podem ser alterados depois do cadastro.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Valor da meta <span class="text-danger">*</span></label>
+                    <InputMoeda @bind-Value="orcamento.ValorMeta" />
+                    <ValidationMessage For="@(() => orcamento.ValorMeta)" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                        }
+                    </button>
+                    <a href="/orcamentos" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AtualizarOrcamentoRequest? orcamento;
+    private string nomeCategoriaAtual = "—";
+    private DateOnly mesReferenciaAtual;
+    private bool carregando = true;
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var atual = await OrcamentoService.ObterPorId(Id);
+
+        if (atual is null)
+        {
+            NotificacaoService.ShowWarning("Orçamento não encontrado");
+            Navegacao.NavigateTo("/orcamentos");
+            return;
+        }
+
+        // Cópia campo a campo, de propósito: o Response carrega dado que a Api
+        // não aceita em escrita (categoria, mês) — o Request de editar só tem ValorMeta.
+        orcamento = new AtualizarOrcamentoRequest { ValorMeta = atual.ValorMeta };
+        mesReferenciaAtual = atual.MesReferencia;
+
+        var categoria = await CategoriaService.ObterPorId(atual.IdCategoria);
+        nomeCategoriaAtual = categoria?.Nome ?? "—";
+
+        carregando = false;
+    }
+
+    private async Task ManipularEnvio()
+    {
+        if (orcamento is null) return;
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            if (await OrcamentoService.Atualizar(Id, orcamento))
+            {
+                NotificacaoService.ShowSuccess("Orçamento atualizado com sucesso!", "Alteração Salva");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/orcamentos");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao atualizar orçamento: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

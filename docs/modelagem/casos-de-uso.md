@@ -32,6 +32,7 @@ flowchart LR
         UC20([Fechar fatura do ciclo])
         
         UC21([Gerar ocorrência de recorrência])
+        UC22([Ver dashboard])
     end
 
     Usuario --- UC01
@@ -49,6 +50,7 @@ flowchart LR
     Usuario --- UC17
     Usuario --- UC18
     Usuario --- UC19
+    Usuario --- UC22
 
     SistemaJob --- UC20
     SistemaJob --- UC21

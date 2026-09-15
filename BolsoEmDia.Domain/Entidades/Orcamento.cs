@@ -9,6 +9,7 @@ namespace BolsoEmDia.Domain.Entidades
         public int IdCategoria { get; private set; }
         public DateOnly MesReferencia { get; private set; }
         public decimal ValorMeta { get; private set; }
+        public bool Ativa { get; private set; }
 
         public DateTime DataCriacao { get; set; }
         public string? IdUsuarioCriacao { get; set; }
@@ -29,7 +30,8 @@ namespace BolsoEmDia.Domain.Entidades
                 IdUsuario = idUsuario,
                 IdCategoria = idCategoria,
                 MesReferencia = new DateOnly(mesReferencia.Year, mesReferencia.Month, 1), // sempre 1º dia do mês
-                ValorMeta = valorMeta
+                ValorMeta = valorMeta,
+                Ativa = true
             };
         }
 
@@ -40,6 +42,10 @@ namespace BolsoEmDia.Domain.Entidades
 
             ValorMeta = valorMeta;
         }
+
+        public void Ativar() => Ativa = true;
+
+        public void Desativar() => Ativa = false;
 
         // Estourar gera alerta — nunca bloqueia lançamento (ver regras-negocio-financas).
         public decimal PercentualConsumido(decimal totalGastoNoMes) => totalGastoNoMes / ValorMeta;

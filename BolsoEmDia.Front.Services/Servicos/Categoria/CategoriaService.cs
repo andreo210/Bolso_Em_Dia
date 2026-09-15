@@ -24,5 +24,14 @@ namespace BolsoEmDia.Front.Services.Servicos.Categoria
             var (resposta, _) = await _api.PostAsync<CategoriaResponse, CriarCategoriaRequest>(RotaBase, request, ct);
             return resposta;
         }
+
+        public Task<bool> Atualizar(int id, AtualizarCategoriaRequest request, CancellationToken ct = default) =>
+            _api.PutAsync($"{RotaBase}/{id}", request, ct);
+
+        public Task<bool> Ativar(int id, CancellationToken ct = default) =>
+            _api.PatchAsync($"{RotaBase}/{id}/ativar", new object(), ct);
+
+        public Task<bool> Inativar(int id, CancellationToken ct = default) =>
+            _api.PatchAsync($"{RotaBase}/{id}/inativar", new object(), ct);
     }
 }

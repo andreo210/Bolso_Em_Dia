@@ -11,7 +11,9 @@ namespace BolsoEmDia.Application.Models.Mappers
             Nome = entidade.Nome,
             Tipo = entidade.Tipo,
             IdCategoriaPai = entidade.IdCategoriaPai,
-            Ativa = entidade.Ativa
+            Ativa = entidade.Ativa,
+            Cor = entidade.Cor,
+            Icone = entidade.Icone
         };
 
         public static List<CategoriaDto> ToDtoList(this IEnumerable<Categoria> entidades)

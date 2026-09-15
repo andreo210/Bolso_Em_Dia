@@ -54,7 +54,9 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+// Sem isso, o FallbackPolicy (autenticação obrigatória por padrão) também varre os
+// endpoints de asset estático — anônimo em /login não consegue nem carregar o CSS.
+app.MapStaticAssets().AllowAnonymous();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

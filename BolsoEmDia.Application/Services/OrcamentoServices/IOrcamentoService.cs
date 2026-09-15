@@ -10,6 +10,13 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
 
         Task<OrcamentoDto?> DefinirAsync(DefinirOrcamentoDto dto, CancellationToken ct = default);
 
+        // UC08 — Editar orçamento: só o valor da meta é alterável (categoria/mês definem a identidade).
+        Task<bool> AtualizarAsync(int id, AtualizarOrcamentoDto dto, CancellationToken ct = default);
+
+        Task<bool> AtivarAsync(int id, CancellationToken ct = default);
+
+        Task<bool> InativarAsync(int id, CancellationToken ct = default);
+
         Task<ProgressoOrcamentoDto?> ObterProgressoAsync(int idCategoria, DateOnly mesReferencia, CancellationToken ct = default);
 
         // UC10 — Alertar orçamento estourado (estende UC04): retorna mensagem de alerta se estourou, null caso contrário ou sem orçamento definido.

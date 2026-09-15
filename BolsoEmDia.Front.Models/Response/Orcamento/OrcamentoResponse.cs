@@ -6,5 +6,6 @@ namespace BolsoEmDia.Front.Models.Response.Orcamento
         public int IdCategoria { get; set; }
         public DateOnly MesReferencia { get; set; }
         public decimal ValorMeta { get; set; }
+        public bool Ativa { get; set; }
     }
 }

@@ -10,7 +10,8 @@ namespace BolsoEmDia.Application.Models.Mappers
             IdOrcamento = entidade.IdOrcamento,
             IdCategoria = entidade.IdCategoria,
             MesReferencia = entidade.MesReferencia,
-            ValorMeta = entidade.ValorMeta
+            ValorMeta = entidade.ValorMeta,
+            Ativa = entidade.Ativa
         };
 
         public static List<OrcamentoDto> ToDtoList(this IEnumerable<Orcamento> entidades)

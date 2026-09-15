@@ -113,5 +113,36 @@ namespace BolsoEmDia.Tests.Fakes
 
             return Task.FromResult(total);
         }
+
+        public Task<IReadOnlyList<(int IdCategoria, decimal Total)>> ObterGastosPorCategoriaAsync(
+            string idUsuario, DateTime inicio, DateTime fim, CancellationToken ct = default)
+        {
+            IReadOnlyList<(int IdCategoria, decimal Total)> resultado = Armazem.Tabela<Transacao>()
+                .Where(t => t.IdUsuario == idUsuario && t.Tipo == TipoTransacao.Despesa
+                    && t.IdCategoria.HasValue && t.Data >= inicio && t.Data <= fim)
+                .GroupBy(t => t.IdCategoria!.Value)
+                .Select(g => (IdCategoria: g.Key, Total: g.Sum(t => t.Valor)))
+                .ToList();
+
+            return Task.FromResult(resultado);
+        }
+
+        public Task<IReadOnlyList<(int Ano, int Mes, decimal TotalReceitas, decimal TotalDespesas)>> ObterEvolucaoMensalAsync(
+            string idUsuario, DateTime inicio, DateTime fim, CancellationToken ct = default)
+        {
+            IReadOnlyList<(int Ano, int Mes, decimal TotalReceitas, decimal TotalDespesas)> resultado = Armazem.Tabela<Transacao>()
+                .Where(t => t.IdUsuario == idUsuario
+                    && (t.Tipo == TipoTransacao.Receita || t.Tipo == TipoTransacao.Despesa)
+                    && t.Data >= inicio && t.Data <= fim)
+                .GroupBy(t => new { t.Data.Year, t.Data.Month })
+                .Select(g => (
+                    Ano: g.Key.Year,
+                    Mes: g.Key.Month,
+                    TotalReceitas: g.Where(t => t.Tipo == TipoTransacao.Receita).Sum(t => t.Valor),
+                    TotalDespesas: g.Where(t => t.Tipo == TipoTransacao.Despesa).Sum(t => t.Valor)))
+                .ToList();
+
+            return Task.FromResult(resultado);
+        }
     }
 }

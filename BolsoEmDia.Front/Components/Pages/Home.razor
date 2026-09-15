@@ -1,11 +1,255 @@
 @page "/"
+@using System.Globalization
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Models.Response.Dashboard
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Dashboard
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IContaService ContaService
+@inject IDashboardService DashboardService
+@rendermode InteractiveServer
 
 <PageTitle>BolsoEmDia</PageTitle>
 
-<h1>BolsoEmDia</h1>
-
 <AuthorizeView>
     <Authorized>
-        <p>Bem-vindo(a), @context.User.Identity?.Name.</p>
+        <p class="auth-eyebrow mb-1">Olá, @context.User.Identity?.Name</p>
+        <h1 class="mb-4">Seu extrato de hoje</h1>
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <div class="card shadow-sm h-100 saldo-card">
+                    <div class="card-body">
+                        <p class="saldo-rotulo mb-2">Saldo total em contas ativas</p>
+
+                        @if (carregando)
+                        {
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        }
+                        else if (erro)
+                        {
+                            <p class="text-danger mb-0">Não foi possível calcular o saldo agora.</p>
+                        }
+                        else if (qtdContasAtivas == 0)
+                        {
+                            <p class="text-muted mb-0">Cadastre uma conta para acompanhar seu saldo aqui.</p>
+                            <a href="/contas/novo" class="btn btn-sm btn-primary mt-3">
+                                <i class="bi bi-plus-circle me-1"></i>Nova conta
+                            </a>
+                        }
+                        else
+                        {
+                            <p class="saldo-valor mb-1 @(saldoTotal < 0 ? "text-danger" : "")">@saldoTotal.ToString("C2")</p>
+                            <p class="text-muted small mb-0">@qtdContasAtivas conta(s) ativa(s) · atualizado agora</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="row row-cols-1 row-cols-sm-2 g-3 h-100">
+                    <div class="col">
+                        <a href="/transacoes/nova" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-arrow-left-right"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Lançar transação</span>
+                                    <span class="quick-action-detalhe d-block">Receita ou despesa avulsa</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="/transferencias/nova" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-bank2"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Transferir</span>
+                                    <span class="quick-action-detalhe d-block">Entre duas contas suas</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="/compras/nova" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-credit-card"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Compra no cartão</span>
+                                    <span class="quick-action-detalhe d-block">À vista ou parcelada</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="/orcamentos" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-pie-chart"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Orçamentos</span>
+                                    <span class="quick-action-detalhe d-block">Progresso do mês por categoria</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!carregando && !erro && dashboard is not null)
+        {
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <p class="resumo-mes-rotulo mb-2">Receitas — @dashboard.MesReferencia.ToString("MM/yyyy")</p>
+                            <p class="resumo-mes-valor mb-0 text-success">@dashboard.TotalReceitasMes.ToString("C2")</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <p class="resumo-mes-rotulo mb-2">Despesas — @dashboard.MesReferencia.ToString("MM/yyyy")</p>
+                            <p class="resumo-mes-valor mb-0 text-danger">@dashboard.TotalDespesasMes.ToString("C2")</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <p class="resumo-mes-rotulo mb-2">Saldo do mês</p>
+                            <p class="resumo-mes-valor mb-0 @(dashboard.SaldoMes < 0 ? "text-danger" : "")">@dashboard.SaldoMes.ToString("C2")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-lg-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="mb-3">Gastos por categoria — @dashboard.MesReferencia.ToString("MM/yyyy")</h6>
+                            @if (dashboard.GastosPorCategoria.Count == 0)
+                            {
+                                <p class="text-muted mb-0">Nenhuma despesa registrada em @dashboard.MesReferencia.ToString("MM/yyyy").</p>
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center gap-4 flex-wrap">
+                                    <div class="grafico-donut" style="@EstiloDonut()"></div>
+                                    <ul class="list-unstyled mb-0 flex-grow-1">
+                                        @for (var i = 0; i < dashboard.GastosPorCategoria.Count; i++)
+                                        {
+                                            var fatia = dashboard.GastosPorCategoria[i];
+                                            <li class="d-flex align-items-center gap-2 mb-2">
+                                                <span class="grafico-legenda-cor" style="background: @CorFatia(i);"></span>
+                                                <span class="flex-grow-1">@fatia.NomeCategoria</span>
+                                                <span class="text-muted small">@fatia.Total.ToString("C2") (@fatia.Percentual.ToString("P0"))</span>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="mb-3">Evolução mensal</h6>
+                            <div class="d-flex align-items-end gap-3">
+                                @foreach (var mes in dashboard.EvolucaoMensal)
+                                {
+                                    <div class="d-flex flex-column align-items-center" style="width: 3rem;">
+                                        <div class="d-flex align-items-end gap-1" style="height: 120px;">
+                                            <div class="grafico-evolucao-barra bg-success"
+                                                 style="height: @(AlturaBarra(mes.TotalReceitas))px"
+                                                 title="Receitas: @mes.TotalReceitas.ToString("C2")"></div>
+                                            <div class="grafico-evolucao-barra bg-danger"
+                                                 style="height: @(AlturaBarra(mes.TotalDespesas))px"
+                                                 title="Despesas: @mes.TotalDespesas.ToString("C2")"></div>
+                                        </div>
+                                        <span class="grafico-evolucao-rotulo">@mes.Mes.ToString("MM/yy")</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </Authorized>
 </AuthorizeView>
+
+@code {
+    // Paleta cicla pelas variáveis de cor já usadas no resto do app (ver app.css) — sem introduzir cor nova.
+    private static readonly string[] PaletaCores =
+    {
+        "var(--cor-primaria)", "var(--cor-acento)", "var(--cor-sucesso)",
+        "var(--cor-info)", "var(--cor-perigo)", "var(--cor-primaria-suave)"
+    };
+
+    private List<ContaResponse> contasAtivas = new();
+    private decimal saldoTotal;
+    private int qtdContasAtivas;
+    private DashboardResponse? dashboard;
+    private bool carregando = true;
+    private bool erro;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var dashboardTask = DashboardService.Obter();
+
+            var contas = await ContaService.ObterTodos();
+            contasAtivas = contas?.Where(c => c.Ativa).ToList() ?? new();
+            qtdContasAtivas = contasAtivas.Count;
+
+            var saldos = await Task.WhenAll(contasAtivas.Select(c => ContaService.ObterSaldo(c.IdConta)));
+            saldoTotal = saldos.Sum(s => s?.Saldo ?? 0);
+
+            dashboard = await dashboardTask;
+        }
+        catch (Exception)   // só falha de transporte
+        {
+            erro = true;
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private string CorFatia(int indice) => PaletaCores[indice % PaletaCores.Length];
+
+    // Fatias em ordem decrescente de percentual — cumulativo cresce até 100% (ver DashboardService.ObterGastosPorCategoriaAsync).
+    private string EstiloDonut()
+    {
+        var partes = new List<string>();
+        double acumulado = 0;
+
+        for (var i = 0; i < dashboard!.GastosPorCategoria.Count; i++)
+        {
+            var cor = CorFatia(i);
+            var inicio = acumulado;
+            acumulado += (double)dashboard.GastosPorCategoria[i].Percentual * 100;
+            partes.Add($"{cor} {inicio.ToString("0.##", CultureInfo.InvariantCulture)}% {acumulado.ToString("0.##", CultureInfo.InvariantCulture)}%");
+        }
+
+        return $"background: conic-gradient({string.Join(", ", partes)});";
+    }
+
+    // Escala as barras pelo maior valor entre todos os meses exibidos, senão o mês com mais gasto sempre bateria no teto.
+    private double AlturaBarra(decimal valor)
+    {
+        var maximo = dashboard!.EvolucaoMensal
+            .SelectMany(m => new[] { m.TotalReceitas, m.TotalDespesas })
+            .DefaultIfEmpty(0)
+            .Max();
+
+        if (maximo <= 0) return 0;
+        return Math.Round((double)(valor / maximo) * 120, 1);
+    }
+}

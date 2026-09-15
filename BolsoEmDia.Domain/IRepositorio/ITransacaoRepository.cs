@@ -18,5 +18,20 @@ namespace BolsoEmDia.Domain.IRepositorio
         /// </summary>
         Task<decimal> ObterTotalDespesasNoPeriodoAsync(
             IReadOnlyCollection<int> idsCategoria, DateTime inicio, DateTime fim, CancellationToken ct = default);
+
+        /// <summary>
+        /// Soma das despesas do usuário num período, agrupada por categoria como a transação foi lançada
+        /// (sem enrolar subcategoria no pai) — usada no gráfico de gastos por categoria do dashboard (UC22).
+        /// </summary>
+        Task<IReadOnlyList<(int IdCategoria, decimal Total)>> ObterGastosPorCategoriaAsync(
+            string idUsuario, DateTime inicio, DateTime fim, CancellationToken ct = default);
+
+        /// <summary>
+        /// Soma de receitas e despesas do usuário por mês num período — usada na evolução mensal do
+        /// dashboard (UC22). Ignora TransferenciaEntrada/TransferenciaSaida: são movimento entre contas
+        /// do próprio usuário, não renda/gasto real.
+        /// </summary>
+        Task<IReadOnlyList<(int Ano, int Mes, decimal TotalReceitas, decimal TotalDespesas)>> ObterEvolucaoMensalAsync(
+            string idUsuario, DateTime inicio, DateTime fim, CancellationToken ct = default);
     }
 }

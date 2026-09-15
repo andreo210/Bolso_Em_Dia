@@ -8,6 +8,7 @@ namespace BolsoEmDia.Application.Models.Dto
         public int IdCategoria { get; set; }
         public DateOnly MesReferencia { get; set; }
         public decimal ValorMeta { get; set; }
+        public bool Ativa { get; set; }
     }
 
     public class DefinirOrcamentoDto
@@ -18,6 +19,12 @@ namespace BolsoEmDia.Application.Models.Dto
         [Required(ErrorMessage = "Mês de referência é obrigatório")]
         public DateOnly MesReferencia { get; set; }
 
+        [Range(0.01, double.MaxValue, ErrorMessage = "Valor da meta deve ser maior que zero")]
+        public decimal ValorMeta { get; set; }
+    }
+
+    public class AtualizarOrcamentoDto
+    {
         [Range(0.01, double.MaxValue, ErrorMessage = "Valor da meta deve ser maior que zero")]
         public decimal ValorMeta { get; set; }
     }

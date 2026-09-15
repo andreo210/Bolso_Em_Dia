@@ -68,5 +68,47 @@ namespace BolsoEmDia.Api.Controllers
             var resultado = await _service.DefinirAsync(dto, ct);
             return CustomResponse(resultado, HttpStatusCode.Created);
         }
+
+        /// <summary>
+        /// Atualiza o valor da meta de um orçamento existente.
+        /// </summary>
+        /// <response code="204">Atualizado com sucesso.</response>
+        /// <response code="400">Dados inválidos ou orçamento não encontrado.</response>
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult> Atualizar(int id, [FromBody] AtualizarOrcamentoDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return ValidationResponse(ModelState);
+
+            var sucesso = await _service.AtualizarAsync(id, dto, ct);
+            if (!sucesso) return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Inativa o orçamento (soft delete — deixa de gerar progresso/alerta de estouro).
+        /// </summary>
+        /// <response code="204">Inativado com sucesso.</response>
+        /// <response code="400">Orçamento não encontrado.</response>
+        [HttpPatch("{id:int}/inativar")]
+        public async Task<ActionResult> Inativar(int id, CancellationToken ct)
+        {
+            var sucesso = await _service.InativarAsync(id, ct);
+            if (!sucesso) return CustomResponse();
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Reativa um orçamento previamente inativado.
+        /// </summary>
+        /// <response code="204">Ativado com sucesso.</response>
+        /// <response code="400">Orçamento não encontrado.</response>
+        [HttpPatch("{id:int}/ativar")]
+        public async Task<ActionResult> Ativar(int id, CancellationToken ct)
+        {
+            var sucesso = await _service.AtivarAsync(id, ct);
+            if (!sucesso) return CustomResponse();
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
     }
 }

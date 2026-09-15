@@ -17,7 +17,7 @@ namespace BolsoEmDia.Infra.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -251,6 +251,12 @@ namespace BolsoEmDia.Infra.Data.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("ativa");
 
+                    b.Property<string>("Cor")
+                        .IsRequired()
+                        .HasMaxLength(9)
+                        .HasColumnType("character varying(9)")
+                        .HasColumnName("cor");
+
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_criacao");
@@ -258,6 +264,12 @@ namespace BolsoEmDia.Infra.Data.Migrations
                     b.Property<DateTime?>("DataModificacao")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_modificacao");
+
+                    b.Property<string>("Icone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("icone");
 
                     b.Property<int?>("IdCategoriaPai")
                         .HasColumnType("integer")
@@ -583,6 +595,10 @@ namespace BolsoEmDia.Infra.Data.Migrations
                         .HasColumnName("id_orcamento");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("IdOrcamento"));
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativa");
 
                     b.Property<DateTime>("DataCriacao")
                         .HasColumnType("timestamp with time zone")

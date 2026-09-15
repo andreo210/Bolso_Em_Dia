@@ -1,5 +1,6 @@
 @page "/orcamentos"
 @using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Components.Notificacao
 @using BolsoEmDia.Front.Models.Response.Categoria
 @using BolsoEmDia.Front.Models.Response.Orcamento
 @using BolsoEmDia.Front.Models.Tabelas
@@ -9,9 +10,44 @@
 @inject IOrcamentoService OrcamentoService
 @inject ICategoriaService CategoriaService
 @inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
 @rendermode InteractiveServer
 
 <PageTitle>Orçamentos — BolsoEmDia</PageTitle>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+@{ var resumo = ResumoGeral; }
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">Geral — @resumo.Mes.ToString("MM/yyyy")</h6>
+            @if (resumo.Meta > 0)
+            {
+                <span class="badge @(resumo.Estourado ? "bg-danger" : "bg-success")">
+                    @(resumo.Estourado ? "Estourado" : "Dentro do teto")
+                </span>
+            }
+        </div>
+        @if (resumo.Meta > 0)
+        {
+            <div class="d-flex justify-content-between small text-muted mb-1">
+                <span>Gasto: @resumo.Gasto.ToString("C2")</span>
+                <span>Teto (soma dos orçamentos do mês): @resumo.Meta.ToString("C2")</span>
+            </div>
+            <div class="progress" style="height: 1.5rem;">
+                <div class="progress-bar @(resumo.Estourado ? "bg-danger" : "bg-success")"
+                     style="width: @(Math.Min((double)resumo.Percentual * 100, 100))%">
+                    @resumo.Percentual.ToString("P0")
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mb-0">Nenhum orçamento ativo definido para @resumo.Mes.ToString("MM/yyyy").</p>
+        }
+    </div>
+</div>
 
 <TabelaGenerica TItem="OrcamentoLinha"
                 @bind-PaginaAtual="paginaAtual"
@@ -41,16 +77,50 @@
                 <option value="@mes.ToString("yyyy-MM")">@mes.ToString("MM/yyyy")</option>
             }
         </select>
+        <select class="form-select" value="@filtroSituacao" @onchange="AlterarFiltroSituacao">
+            <option value="">Todas as situações</option>
+            <option value="true">Somente ativos</option>
+            <option value="false">Somente inativos</option>
+        </select>
     </FiltrosAdicionais>
+    <AcoesTemplate Context="linha">
+        <div class="btn-group" role="group">
+            <a class="btn btn-sm btn-outline-primary" title="Editar" href="@($"/orcamentos/editar/{linha.IdOrcamento}")">
+                <i class="bi bi-pencil"></i>
+            </a>
+            @if (linha.Ativa)
+            {
+                <button class="btn btn-sm btn-outline-danger" title="Inativar" @onclick="() => InativarOrcamento(linha)">
+                    <i class="bi bi-slash-circle"></i>
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-sm btn-outline-success" title="Ativar" @onclick="() => AtivarOrcamento(linha)">
+                    <i class="bi bi-check-circle"></i>
+                </button>
+            }
+        </div>
+    </AcoesTemplate>
 </TabelaGenerica>
 
 @code {
+    private ConfirmDialog? confirmDialog;
+
     // UC09 — cada orçamento carrega o próprio progresso (gasto/percentual/estourado);
     // a Api não devolve isso na listagem porque progresso depende do total gasto,
     // que só faz sentido calcular por categoria/mês (ver OrcamentoService.ObterProgressoAsync).
     private record OrcamentoLinha(
         int IdOrcamento, int IdCategoria, string NomeCategoria, DateOnly MesReferencia,
-        decimal ValorMeta, decimal TotalGasto, decimal PercentualConsumido, bool Estourado);
+        decimal ValorMeta, decimal TotalGasto, decimal PercentualConsumido, bool Estourado, bool Ativa);
+
+    // "Geral" não é um orçamento próprio — é a soma dos orçamentos por categoria do mês
+    // (só os ativos, mesma regra de ObterProgressoAsync/VerificarEstouroAsync no back).
+    private record ResumoGeralDto(DateOnly Mes, decimal Meta, decimal Gasto)
+    {
+        public decimal Percentual => Meta > 0 ? Gasto / Meta : 0;
+        public bool Estourado => Gasto > Meta;
+    }
 
     private List<OrcamentoLinha> todasLinhas = new();
     private List<OrcamentoLinha> linhasPagina = new();
@@ -63,6 +133,7 @@
     private string? ordenacaoPropriedade;
     private string ordenacaoDirecao = "desc";
     private string filtroMes = string.Empty;
+    private string filtroSituacao = string.Empty;
 
     private List<ColunaTabela<OrcamentoLinha>> colunas => new()
     {
@@ -71,7 +142,7 @@
             Titulo = "Categoria",
             Propriedade = nameof(OrcamentoLinha.NomeCategoria),
             Ordenavel = true,
-            Largura = "20%"
+            Largura = "18%"
         },
         new ColunaTabela<OrcamentoLinha>
         {
@@ -79,7 +150,7 @@
             Propriedade = nameof(OrcamentoLinha.MesReferencia),
             Valor = l => l.MesReferencia.ToString("MM/yyyy"),
             Ordenavel = true,
-            Largura = "12%"
+            Largura = "10%"
         },
         new ColunaTabela<OrcamentoLinha>
         {
@@ -87,7 +158,7 @@
             Valor = l => l.ValorMeta.ToString("C2"),
             Ordenavel = false,
             Alinhamento = "right",
-            Largura = "14%"
+            Largura = "12%"
         },
         new ColunaTabela<OrcamentoLinha>
         {
@@ -95,7 +166,7 @@
             Valor = l => l.TotalGasto.ToString("C2"),
             Ordenavel = false,
             Alinhamento = "right",
-            Largura = "14%"
+            Largura = "12%"
         },
         new ColunaTabela<OrcamentoLinha>
         {
@@ -108,19 +179,52 @@
                         @l.PercentualConsumido.ToString("P0")
                     </div>
                 </div>,
-            Largura = "25%"
+            Largura = "20%"
+        },
+        new ColunaTabela<OrcamentoLinha>
+        {
+            Titulo = "Estouro",
+            Ordenavel = false,
+            Template = l =>
+                @<span class="badge @(l.Estourado ? "bg-danger" : "bg-success")">
+                    @(l.Estourado ? "Estourado" : "Dentro da meta")
+                </span>,
+            Largura = "12%"
         },
         new ColunaTabela<OrcamentoLinha>
         {
             Titulo = "Situação",
             Ordenavel = false,
             Template = l =>
-                @<span class="badge @(l.Estourado ? "bg-danger" : "bg-success")">
-                    @(l.Estourado ? "Estourado" : "Dentro da meta")
+                @<span class="badge @(l.Ativa ? "bg-success" : "bg-secondary")">
+                    @(l.Ativa ? "Ativo" : "Inativo")
                 </span>,
-            Largura = "15%"
+            Largura = "13%"
         }
     };
+
+    // Usa o mês filtrado quando houver; sem filtro, cai no mês atual — "quanto posso gastar" só
+    // faz sentido para um mês por vez, nunca somando meses diferentes.
+    private ResumoGeralDto ResumoGeral
+    {
+        get
+        {
+            DateOnly mes;
+            if (!string.IsNullOrWhiteSpace(filtroMes))
+            {
+                var partes = filtroMes.Split('-');
+                mes = new DateOnly(int.Parse(partes[0]), int.Parse(partes[1]), 1);
+            }
+            else
+            {
+                var hoje = DateTime.Today;
+                mes = new DateOnly(hoje.Year, hoje.Month, 1);
+            }
+
+            var linhasDoMes = todasLinhas.Where(l => l.Ativa && l.MesReferencia == mes).ToList();
+            return new ResumoGeralDto(mes, linhasDoMes.Sum(l => l.ValorMeta), linhasDoMes.Sum(l => l.TotalGasto));
+        }
+    }
 
     protected override async Task OnInitializedAsync() => await CarregarOrcamentos();
 
@@ -146,7 +250,8 @@
                     o.ValorMeta,
                     p?.TotalGasto ?? 0,
                     p?.PercentualConsumido ?? 0,
-                    p?.Estourado ?? false))
+                    p?.Estourado ?? false,
+                    o.Ativa))
                 .ToList();
 
             mesesDisponiveis = todasLinhas.Select(l => l.MesReferencia).Distinct().OrderDescending().ToList();
@@ -171,6 +276,12 @@
         if (!string.IsNullOrWhiteSpace(filtroMes))
             query = query.Where(l => l.MesReferencia.ToString("yyyy-MM") == filtroMes);
 
+        if (!string.IsNullOrWhiteSpace(filtroSituacao))
+        {
+            var ativa = bool.Parse(filtroSituacao);
+            query = query.Where(l => l.Ativa == ativa);
+        }
+
         query = ordenacaoPropriedade switch
         {
             nameof(OrcamentoLinha.MesReferencia) => ordenacaoDirecao == "asc"
@@ -192,5 +303,40 @@
         filtroMes = e.Value?.ToString() ?? string.Empty;
         paginaAtual = 1;
         await AplicarOrdenacaoPaginacao();
+    }
+
+    private async Task AlterarFiltroSituacao(ChangeEventArgs e)
+    {
+        filtroSituacao = e.Value?.ToString() ?? string.Empty;
+        paginaAtual = 1;
+        await AplicarOrdenacaoPaginacao();
+    }
+
+    private async Task InativarOrcamento(OrcamentoLinha linha)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            $"Deseja realmente inativar o orçamento de \"{linha.NomeCategoria}\" em {linha.MesReferencia:MM/yyyy}? Ele deixará de gerar progresso e alerta de estouro.",
+            "Inativar Orçamento");
+
+        if (!confirmado) return;
+
+        if (await OrcamentoService.Inativar(linha.IdOrcamento))
+        {
+            NotificacaoService.ShowSuccess("Orçamento inativado com sucesso!");
+
+            if (linhasPagina.Count == 1 && paginaAtual > 1)
+                paginaAtual--;
+
+            await CarregarOrcamentos();
+        }
+    }
+
+    private async Task AtivarOrcamento(OrcamentoLinha linha)
+    {
+        if (await OrcamentoService.Ativar(linha.IdOrcamento))
+        {
+            NotificacaoService.ShowSuccess("Orçamento ativado com sucesso!");
+            await CarregarOrcamentos();
+        }
     }
 }

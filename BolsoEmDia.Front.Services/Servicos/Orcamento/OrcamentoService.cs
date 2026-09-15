@@ -32,5 +32,14 @@ namespace BolsoEmDia.Front.Services.Servicos.Orcamento
             var (resposta, _) = await _api.PostAsync<OrcamentoResponse, DefinirOrcamentoRequest>(RotaBase, request, ct);
             return resposta;
         }
+
+        public Task<bool> Atualizar(int id, AtualizarOrcamentoRequest request, CancellationToken ct = default) =>
+            _api.PutAsync($"{RotaBase}/{id}", request, ct);
+
+        public Task<bool> Ativar(int id, CancellationToken ct = default) =>
+            _api.PatchAsync($"{RotaBase}/{id}/ativar", new object(), ct);
+
+        public Task<bool> Inativar(int id, CancellationToken ct = default) =>
+            _api.PatchAsync($"{RotaBase}/{id}/inativar", new object(), ct);
     }
 }
