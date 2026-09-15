@@ -8,6 +8,7 @@ using BolsoEmDia.Front.Services.Servicos.Conta;
 using BolsoEmDia.Front.Services.Servicos.Fatura;
 using BolsoEmDia.Front.Services.Servicos.Meta;
 using BolsoEmDia.Front.Services.Servicos.Orcamento;
+using BolsoEmDia.Front.Services.Servicos.Recorrencia;
 using BolsoEmDia.Front.Services.Servicos.Transacao;
 using BolsoEmDia.Front.Services.Servicos.Transferencia;
 using BolsoEmDia.Front.Services.Utils.Notificacao;
@@ -59,6 +60,7 @@ namespace BolsoEmDia.Front.Services.Extensions
             services.AddScoped<ICartaoService, CartaoService>();
             services.AddScoped<ICompraService, CompraService>();
             services.AddScoped<IFaturaService, FaturaService>();
+            services.AddScoped<IRecorrenciaService, RecorrenciaService>();
 
             return services;
         }

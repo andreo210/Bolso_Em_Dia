@@ -1,0 +1,245 @@
+@page "/recorrencias/nova"
+@using BolsoEmDia.Front.Components.Forms
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Recorrencia
+@using BolsoEmDia.Front.Models.Response.Cartao
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Recorrencia
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject IRecorrenciaService RecorrenciaService
+@inject IContaService ContaService
+@inject ICartaoService CartaoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Nova Recorrência — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Nova Recorrência</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="@recorrencia" OnValidSubmit="@ManipularEnvio">
+            <FluentValidationValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Destino <span class="text-danger">*</span></label>
+                <div class="form-check">
+                    <input type="radio" class="form-check-input" id="destinoConta" name="destino"
+                           checked="@(destino == "conta")" @onchange="@(() => AlterarDestino("conta"))" />
+                    <label class="form-check-label" for="destinoConta">Conta (receita ou despesa)</label>
+                </div>
+                <div class="form-check">
+                    <input type="radio" class="form-check-input" id="destinoCartao" name="destino"
+                           checked="@(destino == "cartao")" @onchange="@(() => AlterarDestino("cartao"))" />
+                    <label class="form-check-label" for="destinoCartao">Cartão de crédito (compra)</label>
+                </div>
+            </div>
+
+            @if (destino == "conta")
+            {
+                <div class="mb-3">
+                    <label class="form-label">Conta <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="recorrencia.IdConta" class="form-select">
+                        <option value="">Selecione...</option>
+                        @foreach (var conta in contas)
+                        {
+                            <option value="@conta.IdConta">@conta.Nome</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tipo <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="recorrencia.TipoTransacao" class="form-select">
+                        <option value="">Selecione...</option>
+                        <option value="@TipoTransacao.Receita">Receita</option>
+                        <option value="@TipoTransacao.Despesa">Despesa</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => recorrencia.TipoTransacao)" />
+                </div>
+            }
+            else
+            {
+                <div class="mb-3">
+                    <label class="form-label">Cartão <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="recorrencia.IdCartao" class="form-select">
+                        <option value="">Selecione...</option>
+                        @foreach (var cartao in cartoes)
+                        {
+                            <option value="@cartao.IdCartao">@cartao.Nome</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label">Categoria <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="recorrencia.IdCategoria" class="form-select">
+                    <option value="0">Selecione...</option>
+                    @foreach (var categoria in categoriasDisponiveis)
+                    {
+                        <option value="@categoria.IdCategoria">@categoria.Nome</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => recorrencia.IdCategoria)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Valor <span class="text-danger">*</span></label>
+                <InputMoeda @bind-Value="recorrencia.Valor" />
+                <ValidationMessage For="@(() => recorrencia.Valor)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Frequência <span class="text-danger">*</span></label>
+                <InputSelect @bind-Value="recorrencia.Frequencia" class="form-select">
+                    <option value="@FrequenciaRecorrencia.Semanal">Semanal</option>
+                    <option value="@FrequenciaRecorrencia.Mensal">Mensal</option>
+                    <option value="@FrequenciaRecorrencia.Anual">Anual</option>
+                </InputSelect>
+            </div>
+
+            @if (recorrencia.Frequencia == FrequenciaRecorrencia.Semanal)
+            {
+                <div class="mb-3">
+                    <label class="form-label">Dia da semana <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="recorrencia.DiaGeracao" class="form-select">
+                        <option value="0">Domingo</option>
+                        <option value="1">Segunda-feira</option>
+                        <option value="2">Terça-feira</option>
+                        <option value="3">Quarta-feira</option>
+                        <option value="4">Quinta-feira</option>
+                        <option value="5">Sexta-feira</option>
+                        <option value="6">Sábado</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => recorrencia.DiaGeracao)" />
+                </div>
+            }
+            else
+            {
+                <div class="mb-3">
+                    <label class="form-label">Dia do mês <span class="text-danger">*</span></label>
+                    <InputNumber @bind-Value="recorrencia.DiaGeracao" class="form-control" min="1" max="31" />
+                    <ValidationMessage For="@(() => recorrencia.DiaGeracao)" />
+                    <div class="form-text">Se o mês não tiver esse dia, gera no último dia do mês.</div>
+                </div>
+            }
+
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label">Data de início <span class="text-danger">*</span></label>
+                    <InputDate @bind-Value="recorrencia.DataInicio" class="form-control" />
+                    <ValidationMessage For="@(() => recorrencia.DataInicio)" />
+                </div>
+                <div class="col-6 mb-3">
+                    <label class="form-label">Data fim</label>
+                    <InputDate @bind-Value="recorrencia.DataFim" class="form-control" />
+                    <ValidationMessage For="@(() => recorrencia.DataFim)" />
+                    <div class="form-text">Opcional — deixe em branco para recorrência sem prazo.</div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@processando">
+                    @if (processando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                    }
+                </button>
+                <a href="/recorrencias" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private CriarRecorrenciaRequest recorrencia = new();
+    private List<ContaResponse> contas = new();
+    private List<CartaoResponse> cartoes = new();
+    private List<CategoriaResponse> categorias = new();
+    private string destino = "conta";
+    private bool processando;
+
+    // Compra no cartão é sempre despesa; em conta, só a categoria do mesmo tipo do
+    // lançamento (Receita/Despesa) faz sentido — mesmo filtro de RegistrarCompra/LancarTransacao.
+    private List<CategoriaResponse> categoriasDisponiveis
+    {
+        get
+        {
+            var tipoAlvo = destino == "cartao"
+                ? TipoCategoria.Despesa
+                : recorrencia.TipoTransacao switch
+                {
+                    TipoTransacao.Receita => TipoCategoria.Receita,
+                    TipoTransacao.Despesa => TipoCategoria.Despesa,
+                    _ => (TipoCategoria?)null
+                };
+
+            var query = categorias.Where(c => c.Ativa);
+            return tipoAlvo.HasValue ? query.Where(c => c.Tipo == tipoAlvo.Value).ToList() : query.ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            contas = (await ContaService.ObterTodos() ?? new()).Where(c => c.Ativa).ToList();
+            cartoes = (await CartaoService.ObterTodos() ?? new()).Where(c => c.Ativo).ToList();
+            categorias = await CategoriaService.ObterTodos() ?? new();
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas/cartões/categorias: {ex.Message}");
+        }
+    }
+
+    private void AlterarDestino(string novoDestino)
+    {
+        destino = novoDestino;
+        recorrencia.IdConta = null;
+        recorrencia.IdCartao = null;
+        recorrencia.TipoTransacao = null;
+        recorrencia.IdCategoria = 0;
+    }
+
+    private async Task ManipularEnvio()
+    {
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            var criada = await RecorrenciaService.Inserir(recorrencia);
+
+            if (criada != null)
+            {
+                NotificacaoService.ShowSuccess("Recorrência cadastrada com sucesso!", "Cadastro Realizado");
+                await Task.Delay(1500);   // deixa o toast aparecer antes de sair da tela
+                Navegacao.NavigateTo("/recorrencias");
+            }
+            // recusa da Api já foi notificada pelo ApiHttpService: aqui não se inventa mensagem
+        }
+        catch (Exception ex)   // só falha de transporte
+        {
+            NotificacaoService.ShowError($"Erro ao cadastrar recorrência: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}
