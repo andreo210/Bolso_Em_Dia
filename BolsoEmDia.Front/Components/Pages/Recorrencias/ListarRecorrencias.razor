@@ -1,0 +1,253 @@
+@page "/recorrencias"
+@using BolsoEmDia.Front.Components.Tabela
+@using BolsoEmDia.Front.Components.Notificacao
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Response.Cartao
+@using BolsoEmDia.Front.Models.Response.Categoria
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Models.Response.Recorrencia
+@using BolsoEmDia.Front.Models.Tabelas
+@using BolsoEmDia.Front.Services.Servicos.Cartao
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Servicos.Recorrencia
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IRecorrenciaService RecorrenciaService
+@inject IContaService ContaService
+@inject ICartaoService CartaoService
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject IConfirmDialogService ConfirmService
+@rendermode InteractiveServer
+
+<PageTitle>Recorrências — BolsoEmDia</PageTitle>
+
+<ConfirmDialog @ref="confirmDialog" />
+
+<TabelaGenerica TItem="RecorrenciaResponse"
+                @bind-PaginaAtual="paginaAtual"
+                @bind-ItensPorPagina="itensPorPagina"
+                @bind-OrdenacaoPropriedade="ordenacaoPropriedade"
+                @bind-OrdenacaoDirecao="ordenacaoDirecao"
+                Items="recorrencias"
+                TotalItens="totalItens"
+                Colunas="colunas"
+                Carregando="carregando"
+                OnCarregarDados="CarregarRecorrencias"
+                SelecaoHabilitada="false"
+                MostrarBuscaGlobal="false"
+                Titulo="Recorrências"
+                MensagemVazio="Nenhuma recorrência cadastrada"
+                MensagemVazioDetalhe="Cadastre uma recorrência para gerar receitas, despesas ou compras automaticamente."
+                ColunasFiltro="6">
+    <AcoesCabecalho>
+        <a href="/recorrencias/nova" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Nova Recorrência
+        </a>
+    </AcoesCabecalho>
+    <AcoesTemplate Context="recorrencia">
+        <div class="btn-group" role="group">
+            @if (recorrencia.Ativa)
+            {
+                <button class="btn btn-sm btn-outline-danger" title="Pausar" @onclick="() => Pausar(recorrencia)">
+                    <i class="bi bi-pause-circle"></i>
+                </button>
+            }
+            else
+            {
+                <button class="btn btn-sm btn-outline-success" title="Reativar" @onclick="() => Reativar(recorrencia)">
+                    <i class="bi bi-play-circle"></i>
+                </button>
+            }
+        </div>
+    </AcoesTemplate>
+</TabelaGenerica>
+
+@code {
+    private ConfirmDialog? confirmDialog;
+
+    // A Api não pagina nem filtra recorrências (GET /api/v1/recorrencias devolve a lista
+    // inteira do usuário) — ordenação e paginação abaixo rodam sobre essa lista completa,
+    // então TotalItens continua honesto (não é uma página fatiada do servidor).
+    private List<RecorrenciaResponse> todasRecorrencias = new();
+    private List<RecorrenciaResponse> recorrencias = new();
+    private Dictionary<int, string> nomesContas = new();
+    private Dictionary<int, string> nomesCartoes = new();
+    private Dictionary<int, string> nomesCategorias = new();
+
+    private bool carregando = true;
+    private int totalItens;
+    private int paginaAtual = 1;
+    private int itensPorPagina = 10;
+    private string? ordenacaoPropriedade;
+    private string ordenacaoDirecao = "desc";
+
+    private List<ColunaTabela<RecorrenciaResponse>> colunas => new()
+    {
+        new ColunaTabela<RecorrenciaResponse>
+        {
+            Titulo = "Destino",
+            Ordenavel = false,
+            Valor = r => ObterNomeDestino(r),
+            Largura = "20%"
+        },
+        new ColunaTabela<RecorrenciaResponse>
+        {
+            Titulo = "Categoria",
+            Ordenavel = false,
+            Valor = r => nomesCategorias.GetValueOrDefault(r.IdCategoria, "—"),
+            Largura = "16%"
+        },
+        new ColunaTabela<RecorrenciaResponse>
+        {
+            Titulo = "Valor",
+            Propriedade = nameof(RecorrenciaResponse.Valor),
+            Valor = r => r.Valor.ToString("C2"),
+            Ordenavel = true,
+            Alinhamento = "right",
+            Largura = "14%"
+        },
+        new ColunaTabela<RecorrenciaResponse>
+        {
+            Titulo = "Frequência",
+            Ordenavel = false,
+            Valor = r => ObterDescricaoFrequencia(r),
+            Largura = "20%"
+        },
+        new ColunaTabela<RecorrenciaResponse>
+        {
+            Titulo = "Vigência",
+            Propriedade = nameof(RecorrenciaResponse.DataInicio),
+            Valor = r => r.DataFim.HasValue
+                ? $"{r.DataInicio:dd/MM/yyyy} até {r.DataFim:dd/MM/yyyy}"
+                : $"{r.DataInicio:dd/MM/yyyy} sem término",
+            Ordenavel = true,
+            Largura = "20%"
+        },
+        new ColunaTabela<RecorrenciaResponse>
+        {
+            Titulo = "Situação",
+            Ordenavel = false,
+            Template = r =>
+                @<span class="badge @(r.Ativa ? "bg-success" : "bg-secondary")">
+                    @(r.Ativa ? "Ativa" : "Pausada")
+                </span>,
+            Largura = "10%"
+        }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarReferencias();
+        await CarregarRecorrencias();
+    }
+
+    // Conta, cartão e categoria são listas pequenas e já usadas noutras telas: carregam
+    // uma vez só para rotular a listagem.
+    private async Task CarregarReferencias()
+    {
+        try
+        {
+            var contas = await ContaService.ObterTodos() ?? new();
+            var cartoes = await CartaoService.ObterTodos() ?? new();
+            var categorias = await CategoriaService.ObterTodos() ?? new();
+            nomesContas = contas.ToDictionary(c => c.IdConta, c => c.Nome);
+            nomesCartoes = cartoes.ToDictionary(c => c.IdCartao, c => c.Nome);
+            nomesCategorias = categorias.ToDictionary(c => c.IdCategoria, c => c.Nome);
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao carregar contas/cartões/categorias: {ex.Message}");
+        }
+    }
+
+    private async Task CarregarRecorrencias()
+    {
+        carregando = true;
+        StateHasChanged();
+
+        try
+        {
+            var resultado = await RecorrenciaService.ObterTodos();
+            todasRecorrencias = resultado ?? new();
+        }
+        catch (Exception ex)   // só falha de transporte chega aqui
+        {
+            NotificacaoService.ShowError($"Erro ao carregar recorrências: {ex.Message}");
+            todasRecorrencias = new();
+        }
+        finally
+        {
+            AplicarOrdenacaoPaginacao();
+            carregando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AplicarOrdenacaoPaginacao()
+    {
+        IEnumerable<RecorrenciaResponse> query = todasRecorrencias;
+
+        query = ordenacaoPropriedade switch
+        {
+            nameof(RecorrenciaResponse.Valor) => ordenacaoDirecao == "asc"
+                ? query.OrderBy(r => r.Valor)
+                : query.OrderByDescending(r => r.Valor),
+            _ => ordenacaoDirecao == "asc"
+                ? query.OrderBy(r => r.DataInicio)
+                : query.OrderByDescending(r => r.DataInicio)
+        };
+
+        var lista = query.ToList();
+        totalItens = lista.Count;
+        recorrencias = lista.Skip((paginaAtual - 1) * itensPorPagina).Take(itensPorPagina).ToList();
+    }
+
+    private string ObterNomeDestino(RecorrenciaResponse r) => r.IdConta.HasValue
+        ? $"Conta: {nomesContas.GetValueOrDefault(r.IdConta.Value, "—")}"
+        : $"Cartão: {nomesCartoes.GetValueOrDefault(r.IdCartao ?? 0, "—")}";
+
+    private static string ObterDescricaoFrequencia(RecorrenciaResponse r) => r.Frequencia switch
+    {
+        FrequenciaRecorrencia.Semanal => $"Semanal, {ObterNomeDiaSemana(r.DiaGeracao)}",
+        FrequenciaRecorrencia.Mensal => $"Mensal, dia {r.DiaGeracao}",
+        FrequenciaRecorrencia.Anual => $"Anual, dia {r.DiaGeracao}",
+        _ => r.Frequencia.ToString()
+    };
+
+    private static string ObterNomeDiaSemana(int diaGeracao) => ((DayOfWeek)diaGeracao) switch
+    {
+        DayOfWeek.Sunday => "domingo",
+        DayOfWeek.Monday => "segunda-feira",
+        DayOfWeek.Tuesday => "terça-feira",
+        DayOfWeek.Wednesday => "quarta-feira",
+        DayOfWeek.Thursday => "quinta-feira",
+        DayOfWeek.Friday => "sexta-feira",
+        DayOfWeek.Saturday => "sábado",
+        _ => diaGeracao.ToString()
+    };
+
+    private async Task Pausar(RecorrenciaResponse recorrencia)
+    {
+        var confirmado = await ConfirmService.ConfirmAsync(
+            "Deseja realmente pausar esta recorrência? Ela deixará de gerar novos lançamentos até ser reativada.",
+            "Pausar Recorrência");
+
+        if (!confirmado) return;
+
+        if (await RecorrenciaService.Pausar(recorrencia.IdRecorrencia))
+        {
+            NotificacaoService.ShowSuccess("Recorrência pausada com sucesso!");
+            await CarregarRecorrencias();
+        }
+    }
+
+    private async Task Reativar(RecorrenciaResponse recorrencia)
+    {
+        if (await RecorrenciaService.Reativar(recorrencia.IdRecorrencia))
+        {
+            NotificacaoService.ShowSuccess("Recorrência reativada com sucesso!");
+            await CarregarRecorrencias();
+        }
+    }
+}

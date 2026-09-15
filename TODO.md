@@ -45,7 +45,7 @@ _Nada em andamento no momento._
 
 ## A fazer
 
-_Api: nenhum caso de uso pendente — os 21 UCs estão implementados. Front: ainda é o template padrão do Blazor (Home/Counter/Weather), nada de negócio foi construído — ver seção "Front" abaixo._
+_Nada pendente — os 21 UCs estão implementados na Api e todas as telas correspondentes no Front (ver seção "Front" abaixo)._
 
 ### Infra / qualidade (fora dos casos de uso)
 - [x] `.gitattributes` para normalizar line endings (evitar diff CRLF/LF em massa)
@@ -76,4 +76,4 @@ Segue a skill `arquitetura-front`. UC20 e UC21 são jobs automáticos (ator "job
 - [x] Cartões de crédito — UC13: cadastro + listagem — `ListarCartoes`/`CriarCartao` (`/cartoes`, `/cartoes/novo`); Api não pagina (`GET /api/v1/cartoes` devolve a lista inteira do usuário, igual Categorias), então busca/ordenação/paginação rodam em memória; form pede a conta de pagamento (`IdContaPagamento`) via dropdown com as contas ativas, igual o vínculo opcional de Metas
 - [x] Compras no cartão — UC14/15/16: form de compra (parcelas) + listagem — `ListarCompras`/`RegistrarCompra` (`/compras`, `/compras/nova`); Api não pagina (igual Cartões/Categorias); limite disponível (UC15) não é checado no front — a Api recusa com `ProblemDetails` e o toast já sai pronto do `ApiHttpService`, então não faz sentido duplicar a soma de parcelas aqui; form só oferece categorias do tipo Despesa (compra no cartão nunca é receita)
 - [x] Faturas — UC17: listagem por cartão + pagamento — `ListarFaturas`/`PagarFatura` (`/faturas`, `/faturas/{id}/pagamento`); Api não pagina (igual Cartões/Compras); ação "Pagar" só aparece para fatura != Paga (`Aberta`/`Fechada`, ver diagrama-estados.md sobre pagamento antecipado); form só pede `IdCategoria` — conta de pagamento e valor vêm do cartão/fatura no servidor, saldo insuficiente (UC05) é checado só na Api
-- [ ] Recorrências — UC18/19: criar, pausar/reativar, listagem
+- [x] Recorrências — UC18/19: criar, pausar/reativar, listagem — `ListarRecorrencias`/`CriarRecorrencia` (`/recorrencias`, `/recorrencias/nova`); Api não pagina (igual Cartões/Compras); recorrência é ligada a exatamente uma conta OU um cartão (nunca as duas, ver `Recorrencia.Criar`), então o form troca entre os dois blocos por um radio "Destino" — conta pede também o `TipoTransacao` (Receita/Despesa), cartão é sempre compra (mesma regra de categoria só-Despesa do form de Compras); dia de geração muda de widget conforme a frequência (dropdown de dia da semana quando Semanal, número 1-31 quando Mensal/Anual, mesma faixa validada em `Recorrencia.ValidarDiaGeracao`); listagem resolve nome de conta/cartão/categoria via dicionário carregado à parte (mesmo padrão de Compras) e a ação "Pausar" pede confirmação (mesmo padrão de Inativar Conta), "Reativar" não pede
