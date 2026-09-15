@@ -43,13 +43,48 @@ namespace BolsoEmDia.Application.Services.CategoriaServices
             if (dto.IdCategoriaPai.HasValue && !await ValidarCategoriaPaiAsync(dto.IdCategoriaPai.Value, dto.Tipo, ct))
                 return null;
 
-            var categoria = Categoria.Criar(IdUsuarioAtual, dto.Nome, dto.Tipo, dto.IdCategoriaPai);
+            var categoria = Categoria.Criar(IdUsuarioAtual, dto.Nome, dto.Tipo, dto.IdCategoriaPai, dto.Cor, dto.Icone);
             var salva = await _categoriaRepository.InserirSalvarAsync(categoria, ct);
             return salva.ToDto();
         }
 
+        public async Task<bool> AtualizarAsync(int id, AtualizarCategoriaDto dto, CancellationToken ct = default)
+        {
+            var categoria = await ObterCategoriaDoUsuarioAsync(id, ct);
+            if (categoria is null)
+            {
+                _notificador.Add("Categoria não encontrada");
+                return false;
+            }
+
+            categoria.Renomear(dto.Nome);
+            categoria.AlterarAparencia(dto.Cor, dto.Icone);
+            return await _categoriaRepository.AtualizarSalvarAsync(categoria, ct);
+        }
+
         // E1 — categoria-pai deve existir, pertencer ao usuário, ter o mesmo Tipo e não ser
         // ela própria uma subcategoria (hierarquia de um nível só).
+        public async Task<bool> AtivarAsync(int id, CancellationToken ct = default)
+            => await AlterarSituacaoAsync(id, ativar: true, ct);
+
+        public async Task<bool> InativarAsync(int id, CancellationToken ct = default)
+            => await AlterarSituacaoAsync(id, ativar: false, ct);
+
+        private async Task<bool> AlterarSituacaoAsync(int id, bool ativar, CancellationToken ct)
+        {
+            var categoria = await ObterCategoriaDoUsuarioAsync(id, ct);
+            if (categoria is null)
+            {
+                _notificador.Add("Categoria não encontrada");
+                return false;
+            }
+
+            if (ativar) categoria.Ativar();
+            else categoria.Desativar();
+
+            return await _categoriaRepository.AtualizarSalvarAsync(categoria, ct);
+        }
+
         private async Task<bool> ValidarCategoriaPaiAsync(int idCategoriaPai, TipoCategoria tipo, CancellationToken ct)
         {
             var categoriaPai = await ObterCategoriaDoUsuarioAsync(idCategoriaPai, ct);

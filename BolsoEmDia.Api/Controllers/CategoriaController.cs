@@ -55,5 +55,47 @@ namespace BolsoEmDia.Api.Controllers
             var resultado = await _service.CriarAsync(dto, ct);
             return CustomResponse(resultado, HttpStatusCode.Created);
         }
+
+        /// <summary>
+        /// Atualiza o nome de uma categoria existente.
+        /// </summary>
+        /// <response code="204">Atualizada com sucesso.</response>
+        /// <response code="400">Dados inválidos ou categoria não encontrada.</response>
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult> Atualizar(int id, [FromBody] AtualizarCategoriaDto dto, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return ValidationResponse(ModelState);
+
+            var sucesso = await _service.AtualizarAsync(id, dto, ct);
+            if (!sucesso) return CustomResponse();
+
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Inativa a categoria (soft delete — o histórico de transações é preservado).
+        /// </summary>
+        /// <response code="204">Inativada com sucesso.</response>
+        /// <response code="400">Categoria não encontrada.</response>
+        [HttpPatch("{id:int}/inativar")]
+        public async Task<ActionResult> Inativar(int id, CancellationToken ct)
+        {
+            var sucesso = await _service.InativarAsync(id, ct);
+            if (!sucesso) return CustomResponse();
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
+
+        /// <summary>
+        /// Reativa uma categoria previamente inativada.
+        /// </summary>
+        /// <response code="204">Ativada com sucesso.</response>
+        /// <response code="400">Categoria não encontrada.</response>
+        [HttpPatch("{id:int}/ativar")]
+        public async Task<ActionResult> Ativar(int id, CancellationToken ct)
+        {
+            var sucesso = await _service.AtivarAsync(id, ct);
+            if (!sucesso) return CustomResponse();
+            return CustomResponse(null, HttpStatusCode.NoContent);
+        }
     }
 }

@@ -1,11 +1,124 @@
 @page "/"
+@using BolsoEmDia.Front.Models.Response.Conta
+@using BolsoEmDia.Front.Services.Servicos.Conta
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@inject IContaService ContaService
+@rendermode InteractiveServer
 
 <PageTitle>BolsoEmDia</PageTitle>
 
-<h1>BolsoEmDia</h1>
-
 <AuthorizeView>
     <Authorized>
-        <p>Bem-vindo(a), @context.User.Identity?.Name.</p>
+        <p class="auth-eyebrow mb-1">Olá, @context.User.Identity?.Name</p>
+        <h1 class="mb-4">Seu extrato de hoje</h1>
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <div class="card shadow-sm h-100 saldo-card">
+                    <div class="card-body">
+                        <p class="saldo-rotulo mb-2">Saldo total em contas ativas</p>
+
+                        @if (carregando)
+                        {
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        }
+                        else if (erro)
+                        {
+                            <p class="text-danger mb-0">Não foi possível calcular o saldo agora.</p>
+                        }
+                        else if (qtdContasAtivas == 0)
+                        {
+                            <p class="text-muted mb-0">Cadastre uma conta para acompanhar seu saldo aqui.</p>
+                            <a href="/contas/novo" class="btn btn-sm btn-primary mt-3">
+                                <i class="bi bi-plus-circle me-1"></i>Nova conta
+                            </a>
+                        }
+                        else
+                        {
+                            <p class="saldo-valor mb-1 @(saldoTotal < 0 ? "text-danger" : "")">@saldoTotal.ToString("C2")</p>
+                            <p class="text-muted small mb-0">@qtdContasAtivas conta(s) ativa(s) · atualizado agora</p>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="row row-cols-1 row-cols-sm-2 g-3 h-100">
+                    <div class="col">
+                        <a href="/transacoes/nova" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-arrow-left-right"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Lançar transação</span>
+                                    <span class="quick-action-detalhe d-block">Receita ou despesa avulsa</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="/transferencias/nova" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-bank2"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Transferir</span>
+                                    <span class="quick-action-detalhe d-block">Entre duas contas suas</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="/compras/nova" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-credit-card"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Compra no cartão</span>
+                                    <span class="quick-action-detalhe d-block">À vista ou parcelada</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="/orcamentos" class="quick-action card shadow-sm h-100 text-decoration-none">
+                            <div class="card-body d-flex align-items-start gap-3">
+                                <span class="quick-action-icone"><i class="bi bi-pie-chart"></i></span>
+                                <span>
+                                    <span class="quick-action-titulo d-block">Orçamentos</span>
+                                    <span class="quick-action-detalhe d-block">Progresso do mês por categoria</span>
+                                </span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </Authorized>
 </AuthorizeView>
+
+@code {
+    private List<ContaResponse> contasAtivas = new();
+    private decimal saldoTotal;
+    private int qtdContasAtivas;
+    private bool carregando = true;
+    private bool erro;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var contas = await ContaService.ObterTodos();
+            contasAtivas = contas?.Where(c => c.Ativa).ToList() ?? new();
+            qtdContasAtivas = contasAtivas.Count;
+
+            var saldos = await Task.WhenAll(contasAtivas.Select(c => ContaService.ObterSaldo(c.IdConta)));
+            saldoTotal = saldos.Sum(s => s?.Saldo ?? 0);
+        }
+        catch (Exception)   // só falha de transporte
+        {
+            erro = true;
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}

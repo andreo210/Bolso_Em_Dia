@@ -1,0 +1,150 @@
+@page "/categorias/editar/{Id:int}"
+@using BolsoEmDia.Front.Models.Enum
+@using BolsoEmDia.Front.Models.Request.Categoria
+@using BolsoEmDia.Front.Services.Servicos.Categoria
+@using BolsoEmDia.Front.Services.Utils.Notificacao
+@using Blazored.FluentValidation
+@inject ICategoriaService CategoriaService
+@inject INotificationService NotificacaoService
+@inject NavigationManager Navegacao
+@rendermode InteractiveServer
+
+<PageTitle>Editar Categoria — BolsoEmDia</PageTitle>
+
+<div class="card shadow-sm" style="max-width: 560px;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Editar Categoria</h5>
+    </div>
+    <div class="card-body">
+        @if (carregando)
+        {
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (categoria is not null)
+        {
+            <EditForm Model="@categoria" OnValidSubmit="@ManipularEnvio">
+                <FluentValidationValidator />
+
+                <div class="mb-3">
+                    <label class="form-label">Nome <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="categoria.Nome" class="form-control" autofocus />
+                    <ValidationMessage For="@(() => categoria.Nome)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tipo</label>
+                    <input class="form-control" value="@(tipoAtual == TipoCategoria.Receita ? "Receita" : "Despesa")" disabled />
+                    <div class="form-text">O tipo da categoria não pode ser alterado depois do cadastro.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Categoria pai</label>
+                    <input class="form-control" value="@nomeCategoriaPaiAtual" disabled />
+                </div>
+
+                <div class="row">
+                    <div class="col-8 mb-3">
+                        <label class="form-label">Ícone</label>
+                        <InputSelect @bind-Value="categoria.Icone" class="form-select">
+                            @foreach (var opcao in IconesCategoria.Opcoes)
+                            {
+                                <option value="@opcao.Classe">@opcao.Rotulo</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => categoria.Icone)" />
+                    </div>
+                    <div class="col-4 mb-3">
+                        <label class="form-label">Cor</label>
+                        <input type="color" class="form-control form-control-color w-100" value="@categoria.Cor" @onchange="@(e => categoria.Cor = e.Value?.ToString() ?? categoria.Cor)" />
+                        <ValidationMessage For="@(() => categoria.Cor)" />
+                    </div>
+                </div>
+
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <span class="form-text mb-0">Pré-visualização:</span>
+                    <span class="badge d-inline-flex align-items-center gap-1" style="background-color:@categoria.Cor;">
+                        <i class="bi @categoria.Icone"></i> @(string.IsNullOrWhiteSpace(categoria.Nome) ? "Categoria" : categoria.Nome)
+                    </span>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@processando">
+                        @if (processando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i> <span>Salvar</span>
+                        }
+                    </button>
+                    <a href="/categorias" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AtualizarCategoriaRequest? categoria;
+    private TipoCategoria tipoAtual;
+    private string nomeCategoriaPaiAtual = "Nenhuma (categoria principal)";
+    private bool carregando = true;
+    private bool processando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var atual = await CategoriaService.ObterPorId(Id);
+
+        if (atual is null)
+        {
+            NotificacaoService.ShowWarning("Categoria não encontrada");
+            Navegacao.NavigateTo("/categorias");
+            return;
+        }
+
+        // Cópia campo a campo, de propósito: o Response carrega dado que a Api
+        // não aceita em escrita (tipo, categoria pai) — o Request de editar não inclui esses campos.
+        categoria = new AtualizarCategoriaRequest { Nome = atual.Nome, Cor = atual.Cor, Icone = atual.Icone };
+        tipoAtual = atual.Tipo;
+
+        if (atual.IdCategoriaPai.HasValue)
+        {
+            var pai = await CategoriaService.ObterPorId(atual.IdCategoriaPai.Value);
+            nomeCategoriaPaiAtual = pai?.Nome ?? "—";
+        }
+
+        carregando = false;
+    }
+
+    private async Task ManipularEnvio()
+    {
+        if (categoria is null) return;
+
+        processando = true;
+        StateHasChanged();
+
+        try
+        {
+            if (await CategoriaService.Atualizar(Id, categoria))
+            {
+                NotificacaoService.ShowSuccess("Categoria atualizada com sucesso!", "Alteração Salva");
+                await Task.Delay(1500);
+                Navegacao.NavigateTo("/categorias");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificacaoService.ShowError($"Erro ao atualizar categoria: {ex.Message}");
+        }
+        finally
+        {
+            processando = false;
+            StateHasChanged();
+        }
+    }
+}

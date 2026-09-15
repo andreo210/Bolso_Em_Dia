@@ -12,6 +12,8 @@ namespace BolsoEmDia.Infra.Data.Configuracao
 
             builder.Property(e => e.Nome).HasMaxLength(100).IsRequired();
             builder.Property(e => e.Tipo).HasConversion<int>();
+            builder.Property(e => e.Cor).HasMaxLength(9).IsRequired();
+            builder.Property(e => e.Icone).HasMaxLength(50).IsRequired();
 
             //uma categoria pertence a varios usuarios, mas um usuario pode ter varias categorias
             builder.HasOne<ApplicationUser>().WithMany()
