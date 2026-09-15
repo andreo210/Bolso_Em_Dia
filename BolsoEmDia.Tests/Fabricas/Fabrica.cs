@@ -84,8 +84,15 @@ namespace BolsoEmDia.Tests.Fabricas
             string idUsuario = IdUsuarioPadrao,
             int idCategoria = 1,
             DateOnly? mesReferencia = null,
-            decimal valorMeta = 500m)
-            => Domain.Entidades.Orcamento.Definir(idUsuario, idCategoria, mesReferencia ?? MesAtual(), valorMeta);
+            decimal valorMeta = 500m,
+            bool ativa = true)
+        {
+            var orcamento = Domain.Entidades.Orcamento.Definir(idUsuario, idCategoria, mesReferencia ?? MesAtual(), valorMeta);
+
+            if (!ativa) orcamento.Desativar();
+
+            return orcamento;
+        }
 
         public static MetaEconomia MetaEconomia(
             string idUsuario = IdUsuarioPadrao,

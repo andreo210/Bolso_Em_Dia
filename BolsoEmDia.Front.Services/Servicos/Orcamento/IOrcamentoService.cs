@@ -14,5 +14,9 @@ namespace BolsoEmDia.Front.Services.Servicos.Orcamento
 
         // UC08 — Definir orçamento mensal (upsert: a Api altera a meta se já existir orçamento da categoria naquele mês)
         Task<OrcamentoResponse?> Definir(DefinirOrcamentoRequest request, CancellationToken ct = default);
+
+        Task<bool> Atualizar(int id, AtualizarOrcamentoRequest request, CancellationToken ct = default);
+        Task<bool> Ativar(int id, CancellationToken ct = default);
+        Task<bool> Inativar(int id, CancellationToken ct = default);
     }
 }

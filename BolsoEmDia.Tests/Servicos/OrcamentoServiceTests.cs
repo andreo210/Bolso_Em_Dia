@@ -136,6 +136,33 @@ namespace BolsoEmDia.Tests.Servicos
             Assert.Single(orcamentos.Armazem.Tabela<Orcamento>());
         }
 
+        // Redefinir um orçamento antes inativado precisa reativá-lo — senão ele fica "definido"
+        // porém escondido do progresso/estouro, e o índice único (categoria, mês) nunca deixaria
+        // criar um segundo registro para reativar por fora.
+        [Fact]
+        public async Task DefinirAsync_quando_orcamento_existente_esta_inativo_reativa_ao_redefinir()
+        {
+            var armazem = new ArmazemFake();
+            var categoria = Fabrica.Categoria(tipo: TipoCategoria.Despesa);
+            armazem.Semear(categoria);
+            var orcamentoInativo = Fabrica.Orcamento(idCategoria: categoria.IdCategoria, valorMeta: 500m, ativa: false);
+            armazem.Semear(orcamentoInativo);
+
+            var (service, orcamentos, notificador) = Montar(armazem);
+
+            var resultado = await service.DefinirAsync(new DefinirOrcamentoDto
+            {
+                IdCategoria = categoria.IdCategoria,
+                MesReferencia = Fabrica.MesAtual(),
+                ValorMeta = 800m
+            });
+
+            notificador.NaoDeveNotificar();
+            Assert.NotNull(resultado);
+            Assert.True(resultado!.Ativa);
+            Assert.Single(orcamentos.Armazem.Tabela<Orcamento>());
+        }
+
         [Fact]
         public async Task DefinirAsync_normaliza_mes_referencia_para_o_primeiro_dia_do_mes()
         {
@@ -319,6 +346,107 @@ namespace BolsoEmDia.Tests.Servicos
             Assert.NotNull(resultado);
             Assert.Equal(0m, resultado!.TotalGasto);
             Assert.False(resultado.Estourado);
+        }
+
+        // ======================= Editar / inativar / ativar =======================
+
+        [Fact]
+        public async Task AtualizarAsync_altera_o_valor_da_meta()
+        {
+            var armazem = new ArmazemFake();
+            var orcamento = Fabrica.Orcamento(valorMeta: 500m);
+            armazem.Semear(orcamento);
+
+            var (service, orcamentos, notificador) = Montar(armazem);
+
+            var sucesso = await service.AtualizarAsync(orcamento.IdOrcamento, new AtualizarOrcamentoDto { ValorMeta = 900m });
+
+            notificador.NaoDeveNotificar();
+            Assert.True(sucesso);
+            Assert.Equal(1, orcamentos.Salvamentos);
+            Assert.Equal(900m, orcamento.ValorMeta);
+        }
+
+        [Fact]
+        public async Task AtualizarAsync_orcamento_inexistente_notifica_e_nao_grava()
+        {
+            var (service, orcamentos, notificador) = Montar();
+
+            var sucesso = await service.AtualizarAsync(999, new AtualizarOrcamentoDto { ValorMeta = 900m });
+
+            Assert.False(sucesso);
+            notificador.DeveNotificar("encontrado");
+            Assert.Equal(0, orcamentos.Salvamentos);
+        }
+
+        [Fact]
+        public async Task InativarAsync_desativa_o_orcamento()
+        {
+            var armazem = new ArmazemFake();
+            var orcamento = Fabrica.Orcamento();
+            armazem.Semear(orcamento);
+
+            var (service, orcamentos, notificador) = Montar(armazem);
+
+            var sucesso = await service.InativarAsync(orcamento.IdOrcamento);
+
+            notificador.NaoDeveNotificar();
+            Assert.True(sucesso);
+            Assert.False(orcamento.Ativa);
+            Assert.Equal(1, orcamentos.Salvamentos);
+        }
+
+        [Fact]
+        public async Task AtivarAsync_reativa_o_orcamento()
+        {
+            var armazem = new ArmazemFake();
+            var orcamento = Fabrica.Orcamento(ativa: false);
+            armazem.Semear(orcamento);
+
+            var (service, orcamentos, notificador) = Montar(armazem);
+
+            var sucesso = await service.AtivarAsync(orcamento.IdOrcamento);
+
+            notificador.NaoDeveNotificar();
+            Assert.True(sucesso);
+            Assert.True(orcamento.Ativa);
+            Assert.Equal(1, orcamentos.Salvamentos);
+        }
+
+        // Inativar é o jeito de "desligar" o alerta de estouro sem perder a meta cadastrada —
+        // por isso progresso/estouro tratam orçamento inativo igual a orçamento inexistente.
+        [Fact]
+        public async Task ObterProgressoAsync_de_orcamento_inativo_retorna_null()
+        {
+            var armazem = new ArmazemFake();
+            var categoria = Fabrica.Categoria(tipo: TipoCategoria.Despesa);
+            armazem.Semear(categoria);
+            var orcamento = Fabrica.Orcamento(idCategoria: categoria.IdCategoria, valorMeta: 100m, ativa: false);
+            armazem.Semear(orcamento);
+            armazem.Semear(Fabrica.Despesa(idCategoria: categoria.IdCategoria, valor: 150m, data: DateTime.UtcNow));
+
+            var (service, _, _) = Montar(armazem);
+
+            var resultado = await service.ObterProgressoAsync(categoria.IdCategoria, Fabrica.MesAtual());
+
+            Assert.Null(resultado);
+        }
+
+        [Fact]
+        public async Task VerificarEstouroAsync_de_orcamento_inativo_retorna_null()
+        {
+            var armazem = new ArmazemFake();
+            var categoria = Fabrica.Categoria(tipo: TipoCategoria.Despesa);
+            armazem.Semear(categoria);
+            var orcamento = Fabrica.Orcamento(idCategoria: categoria.IdCategoria, valorMeta: 100m, ativa: false);
+            armazem.Semear(orcamento);
+            armazem.Semear(Fabrica.Despesa(idCategoria: categoria.IdCategoria, valor: 150m, data: DateTime.UtcNow));
+
+            var (service, _, _) = Montar(armazem);
+
+            var resultado = await service.VerificarEstouroAsync(categoria.IdCategoria, Fabrica.MesAtual());
+
+            Assert.Null(resultado);
         }
 
         // ======================= Consultas =======================

@@ -5,7 +5,9 @@
       "Bash(dotnet build-server *)",
       "Bash(curl -s -I http://localhost:5233/categorias)",
       "Bash(curl -s -I http://localhost:5233/categorias/nova)",
-      "Bash(kill 4146)"
+      "Bash(kill 4146)",
+      "Bash(dotnet tool *)",
+      "Bash(dotnet ef *)"
     ]
   }
 }

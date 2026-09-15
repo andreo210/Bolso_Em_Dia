@@ -33,7 +33,7 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
 
         public async Task<OrcamentoDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
-            var orcamento = await ObterOrcamentoDoUsuarioAsync(id, ct);
+            var orcamento = await ObterOrcamentoDoUsuarioAsync(id, rastreado: false, ct);
             return orcamento?.ToDto();
         }
 
@@ -69,6 +69,7 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
             if (existente is not null)
             {
                 existente.AlterarMeta(dto.ValorMeta);
+                existente.Ativar(); // redefinir um orçamento antes inativado reativa ele — mesma linha do índice único (categoria, mês)
                 await _orcamentoRepository.AtualizarSalvarAsync(existente, ct);
                 return existente.ToDto();
             }
@@ -78,14 +79,49 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
             return salvo.ToDto();
         }
 
+        // UC08 — Editar orçamento: só o valor da meta é alterável.
+        public async Task<bool> AtualizarAsync(int id, AtualizarOrcamentoDto dto, CancellationToken ct = default)
+        {
+            var orcamento = await ObterOrcamentoDoUsuarioAsync(id, rastreado: true, ct);
+            if (orcamento is null)
+            {
+                _notificador.Add("Orçamento não encontrado");
+                return false;
+            }
+
+            orcamento.AlterarMeta(dto.ValorMeta);
+            return await _orcamentoRepository.AtualizarSalvarAsync(orcamento, ct);
+        }
+
+        public async Task<bool> AtivarAsync(int id, CancellationToken ct = default)
+            => await AlterarSituacaoAsync(id, ativar: true, ct);
+
+        public async Task<bool> InativarAsync(int id, CancellationToken ct = default)
+            => await AlterarSituacaoAsync(id, ativar: false, ct);
+
+        private async Task<bool> AlterarSituacaoAsync(int id, bool ativar, CancellationToken ct)
+        {
+            var orcamento = await ObterOrcamentoDoUsuarioAsync(id, rastreado: true, ct);
+            if (orcamento is null)
+            {
+                _notificador.Add("Orçamento não encontrado");
+                return false;
+            }
+
+            if (ativar) orcamento.Ativar();
+            else orcamento.Desativar();
+
+            return await _orcamentoRepository.AtualizarSalvarAsync(orcamento, ct);
+        }
+
         // UC09 — Acompanhar progresso do orçamento
         public async Task<ProgressoOrcamentoDto?> ObterProgressoAsync(int idCategoria, DateOnly mesReferencia, CancellationToken ct = default)
         {
             var mes = new DateOnly(mesReferencia.Year, mesReferencia.Month, 1);
             var orcamento = await _orcamentoRepository.ObterPrimeiroAsync(
-                o => o.IdCategoria == idCategoria && o.MesReferencia == mes && o.IdUsuario == IdUsuarioAtual, ct: ct);
+                o => o.IdCategoria == idCategoria && o.MesReferencia == mes && o.IdUsuario == IdUsuarioAtual && o.Ativa, ct: ct);
 
-            // sem orçamento definido não há progresso a calcular — ausência, nunca 0%/100%+ (ver regras-negocio-financas).
+            // sem orçamento definido (ou inativado) não há progresso a calcular — ausência, nunca 0%/100%+ (ver regras-negocio-financas).
             if (orcamento is null) return null;
 
             var totalGasto = await CalcularTotalGastoNoMesAsync(idCategoria, mes, ct);
@@ -107,7 +143,7 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
         {
             var mes = new DateOnly(mesReferencia.Year, mesReferencia.Month, 1);
             var orcamento = await _orcamentoRepository.ObterPrimeiroAsync(
-                o => o.IdCategoria == idCategoria && o.MesReferencia == mes && o.IdUsuario == IdUsuarioAtual, ct: ct);
+                o => o.IdCategoria == idCategoria && o.MesReferencia == mes && o.IdUsuario == IdUsuarioAtual && o.Ativa, ct: ct);
             if (orcamento is null) return null;
 
             var totalGasto = await CalcularTotalGastoNoMesAsync(idCategoria, mes, ct);
@@ -135,7 +171,7 @@ namespace BolsoEmDia.Application.Services.OrcamentoServices
         }
 
         // Escopa toda leitura pelo usuário logado: orçamento de outro usuário nunca aparece, nem para confirmar que existe.
-        private Task<Orcamento?> ObterOrcamentoDoUsuarioAsync(int id, CancellationToken ct)
-            => _orcamentoRepository.ObterPrimeiroAsync(o => o.IdOrcamento == id && o.IdUsuario == IdUsuarioAtual, ct: ct);
+        private Task<Orcamento?> ObterOrcamentoDoUsuarioAsync(int id, bool rastreado, CancellationToken ct)
+            => _orcamentoRepository.ObterPrimeiroAsync(o => o.IdOrcamento == id && o.IdUsuario == IdUsuarioAtual, rastreado: rastreado, ct: ct);
     }
 }

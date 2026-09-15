@@ -17,4 +17,13 @@ namespace BolsoEmDia.Front.Models.Validadores
                 .GreaterThan(0).WithMessage("Valor da meta deve ser maior que zero");
         }
     }
+
+    public class AtualizarOrcamentoRequestValidator : AbstractValidator<AtualizarOrcamentoRequest>
+    {
+        public AtualizarOrcamentoRequestValidator()
+        {
+            RuleFor(x => x.ValorMeta)
+                .GreaterThan(0).WithMessage("Valor da meta deve ser maior que zero");
+        }
+    }
 }
